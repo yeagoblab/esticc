@@ -1,11 +1,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::io::{BufRead, BufReader, Write};
+use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 
-use tauri::api::process::{Command, CommandEvent};
 use serde_json::Value;
+use tauri::Manager;
 use tokio::sync::oneshot;
 
 // ── ID de solicitudes ─────────────────────────────────────────────────────────
@@ -16,21 +18,17 @@ fn next_id() -> String {
     REQ_ID.fetch_add(1, Ordering::Relaxed).to_string()
 }
 
-// ── Estado compartido de la aplicación ───────────────────────────────────────
+// ── Estado compartido ─────────────────────────────────────────────────────────
 
 type PendingMap = Arc<Mutex<HashMap<String, oneshot::Sender<Result<Value, String>>>>>;
 
 struct AppState {
-    /// Handle al proceso hijo Python (para escribir en su stdin).
-    child: Mutex<tauri::api::process::CommandChild>,
-    /// Canales oneshot esperando respuesta del sidecar, indexados por request ID.
+    stdin:   Mutex<std::process::ChildStdin>,
     pending: PendingMap,
 }
 
 // ── Comando Tauri ─────────────────────────────────────────────────────────────
 
-/// Punto de entrada único para todas las acciones de auditoría.
-/// JS llama: invoke('audit', { action: 'scan_ports' })
 #[tauri::command]
 async fn audit(
     action: String,
@@ -39,28 +37,24 @@ async fn audit(
     let id = next_id();
     let (tx, rx) = oneshot::channel::<Result<Value, String>>();
 
-    // Registrar canal antes de escribir para evitar race condition.
     state.pending.lock().unwrap().insert(id.clone(), tx);
 
     let msg = format!("{}\n", serde_json::json!({ "id": id, "action": action }));
-
     state
-        .child
+        .stdin
         .lock()
         .unwrap()
-        .write(msg.as_bytes())
+        .write_all(msg.as_bytes())
         .map_err(|e| format!("Error escribiendo al sidecar: {e}"))?;
 
     rx.await
         .map_err(|_| "El sidecar cerró el canal inesperadamente.".to_string())?
 }
 
-// ── Resolución de ruta del sidecar Python ─────────────────────────────────────
+// ── Ruta del script Python ────────────────────────────────────────────────────
 
-/// En desarrollo, el exe está en src-tauri/target/debug/; subimos 3 niveles
-/// para llegar a la raíz del proyecto ESTICC/ y luego a backend/main.py.
-/// En producción se usa el binario empaquetado con PyInstaller.
 fn python_script_path() -> std::path::PathBuf {
+    // En dev, el exe está en src-tauri/target/debug/; subimos 3 niveles.
     let mut p = std::env::current_exe().expect("No se puede obtener la ruta del ejecutable.");
     p.pop(); // debug/
     p.pop(); // target/
@@ -70,16 +64,14 @@ fn python_script_path() -> std::path::PathBuf {
     p
 }
 
-// ── Hilo lector de stdout del sidecar ────────────────────────────────────────
+// ── Lector de stdout del sidecar ─────────────────────────────────────────────
 
-fn spawn_stdout_reader(
-    mut rx: tauri::async_runtime::Receiver<CommandEvent>,
-    pending: PendingMap,
-) {
-    tauri::async_runtime::spawn(async move {
-        while let Some(event) = rx.recv().await {
-            match event {
-                CommandEvent::Stdout(line) => {
+fn spawn_stdout_reader(stdout: std::process::ChildStdout, pending: PendingMap) {
+    std::thread::spawn(move || {
+        let reader = BufReader::new(stdout);
+        for line in reader.lines() {
+            match line {
+                Ok(line) => {
                     let line = line.trim().to_string();
                     if line.is_empty() {
                         continue;
@@ -91,7 +83,6 @@ fn spawn_stdout_reader(
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("")
                                 .to_string();
-
                             if let Some(tx) = pending.lock().unwrap().remove(&id) {
                                 let payload = if let Some(err) = msg.get("error") {
                                     Err(err.as_str().unwrap_or("Error desconocido").to_string())
@@ -102,24 +93,20 @@ fn spawn_stdout_reader(
                             }
                         }
                         Err(e) => {
-                            eprintln!("[sidecar stdout] JSON inválido: {e} — línea: {line}");
+                            eprintln!("[sidecar] JSON inválido: {e} — «{line}»");
                         }
                     }
                 }
-                CommandEvent::Stderr(line) => {
-                    eprintln!("[sidecar stderr] {line}");
-                }
-                CommandEvent::Terminated(status) => {
-                    eprintln!("[sidecar] proceso terminado — estado: {:?}", status.code);
-                    // Notificar a todos los canales pendientes que el sidecar cayó.
-                    let mut map = pending.lock().unwrap();
-                    for (_, tx) in map.drain() {
-                        let _ = tx.send(Err("El sidecar se terminó inesperadamente.".to_string()));
-                    }
+                Err(e) => {
+                    eprintln!("[sidecar] Error de lectura stdout: {e}");
                     break;
                 }
-                _ => {}
             }
+        }
+        // EOF: notificar a todos los pendientes que el sidecar cayó.
+        let mut map = pending.lock().unwrap();
+        for (_, tx) in map.drain() {
+            let _ = tx.send(Err("El sidecar se terminó inesperadamente.".to_string()));
         }
     });
 }
@@ -128,35 +115,26 @@ fn spawn_stdout_reader(
 
 fn main() {
     tauri::Builder::default()
-        .setup(|app| {
+        .setup(|app| -> Result<(), Box<dyn std::error::Error>> {
             let pending: PendingMap = Arc::new(Mutex::new(HashMap::new()));
 
-            // Lanzar el sidecar Python.
-            let (rx, child) = {
-                #[cfg(debug_assertions)]
-                {
-                    let script = python_script_path();
-                    Command::new("python")
-                        .args([script.to_str().unwrap()])
-                        .spawn()
-                        .map_err(|e| format!("No se pudo iniciar Python: {e}"))?
-                }
-                #[cfg(not(debug_assertions))]
-                {
-                    // Producción: binario generado con PyInstaller, empaquetado en externalBin.
-                    Command::new_sidecar("main")
-                        .map_err(|e| format!("{e}"))?
-                        .spawn()
-                        .map_err(|e| format!("{e}"))?
-                }
-            };
+            let script = python_script_path();
+            eprintln!("[setup] Lanzando sidecar: python {:?}", script);
 
-            // Hilo de lectura de stdout en background.
-            spawn_stdout_reader(rx, Arc::clone(&pending));
+            let mut child = Command::new("python")
+                .arg(&script)
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::inherit())
+                .spawn()?;
 
-            // Registrar estado en el contenedor de Tauri.
+            let stdout = child.stdout.take().expect("stdout no disponible");
+            let stdin  = child.stdin.take().expect("stdin no disponible");
+
+            spawn_stdout_reader(stdout, Arc::clone(&pending));
+
             app.manage(AppState {
-                child: Mutex::new(child),
+                stdin:   Mutex::new(stdin),
                 pending,
             });
 
