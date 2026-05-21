@@ -180,6 +180,64 @@ body.modo-avanzado .enc-avanzado-extra { display: block; }
   border-top: 1px solid var(--border);
 }
 
+/* ── Bloques técnicos (modo avanzado) ───────────────────────────────────── */
+
+.enc-tecnico-bloque { margin-bottom: 8px; }
+.enc-tecnico-bloque:last-child { margin-bottom: 0; }
+
+.enc-tecnico-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 4px;
+}
+
+/* MITRE tags */
+.enc-mitre-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.enc-mitre-tag {
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'Consolas', 'Courier New', monospace;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(88,166,255,0.1);
+  border: 1px solid rgba(88,166,255,0.25);
+  color: var(--accent);
+  cursor: default;
+}
+
+/* IOCs */
+.enc-ioc-lista { display: grid; gap: 3px; }
+
+.enc-ioc {
+  font-size: 11px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  color: var(--warn);
+  background: rgba(210,153,34,0.07);
+  border-left: 2px solid var(--warn);
+  padding: 2px 6px;
+  border-radius: 0 4px 4px 0;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+/* CVE tags */
+.enc-cve-lista { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.enc-cve-tag {
+  font-size: 10px;
+  font-weight: 600;
+  font-family: 'Consolas', 'Courier New', monospace;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(248,81,73,0.1);
+  border: 1px solid rgba(248,81,73,0.25);
+  color: var(--danger);
+}
+
 /* ── Modal ──────────────────────────────────────────────────────────────── */
 
 #enc-modal-overlay {
@@ -294,6 +352,45 @@ body.modo-avanzado .enc-avanzado-extra { display: block; }
   border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
+}
+
+/* ── Modal: sección técnica ─────────────────────────────────────────────── */
+
+.enc-modal-tecnico-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.enc-modal-mitre-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.enc-modal-mitre-nombre {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.enc-modal-cve {
+  font-size: 12px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  color: var(--danger);
+  background: rgba(248,81,73,0.07);
+  border-left: 2px solid var(--danger);
+  padding: 3px 8px;
+  border-radius: 0 4px 4px 0;
+  margin-bottom: 4px;
 }
 
 .enc-herramienta-modal {
