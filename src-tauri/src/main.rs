@@ -56,6 +56,7 @@ async fn audit(
 fn python_script_path() -> std::path::PathBuf {
     // En dev, el exe está en src-tauri/target/debug/; subimos 3 niveles.
     let mut p = std::env::current_exe().expect("No se puede obtener la ruta del ejecutable.");
+    p.pop(); // esticc.exe
     p.pop(); // debug/
     p.pop(); // target/
     p.pop(); // src-tauri/
