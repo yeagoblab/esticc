@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Tauri / Rust
+target/
+src-tauri/target/
+*.lock
+!Cargo.lock
+
+# Node (si se usa para frontend build)
+node_modules/
+.parcel-cache/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Reportes generados
+reportes/output/
+*.pdf
+*.html.generated
+
+# SQLite local
+*.db
+*.sqlite

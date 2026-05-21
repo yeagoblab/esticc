@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ESTICC — Panel de Seguridad</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --accent: #58a6ff;
+      --ok: #3fb950;
+      --warn: #d29922;
+      --danger: #f85149;
+      --text: #c9d1d9;
+      --text-dim: #8b949e;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    header h1 { font-size: 18px; font-weight: 600; color: var(--accent); }
+    header span { font-size: 12px; color: var(--text-dim); }
+
+    #modo-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    #modo-toggle input[type=checkbox] { display: none; }
+
+    .toggle-track {
+      width: 40px; height: 20px;
+      background: var(--border);
+      border-radius: 10px;
+      position: relative;
+      transition: background 0.2s;
+    }
+
+    .toggle-track::after {
+      content: '';
+      position: absolute;
+      width: 16px; height: 16px;
+      background: #fff;
+      border-radius: 50%;
+      top: 2px; left: 2px;
+      transition: left 0.2s;
+    }
+
+    #modo-checkbox:checked + .toggle-track { background: var(--accent); }
+    #modo-checkbox:checked + .toggle-track::after { left: 22px; }
+
+    nav {
+      display: flex;
+      gap: 4px;
+      padding: 8px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    nav button {
+      background: none;
+      border: 1px solid transparent;
+      color: var(--text-dim);
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.15s;
+    }
+
+    nav button:hover { color: var(--text); border-color: var(--border); }
+    nav button.active { color: var(--accent); border-color: var(--accent); background: rgba(88,166,255,0.1); }
+
+    main { padding: 24px; }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .card h2 { font-size: 15px; margin-bottom: 12px; color: var(--text); }
+
+    .scan-btn {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      transition: opacity 0.15s;
+    }
+
+    .scan-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+
+    th {
+      text-align: left;
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-dim);
+      font-weight: 500;
+    }
+
+    td {
+      padding: 5px 8px;
+      border-bottom: 1px solid rgba(48,54,61,0.5);
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-ok     { background: rgba(63,185,80,0.15);  color: var(--ok); }
+    .badge-warn   { background: rgba(210,153,34,0.15); color: var(--warn); }
+    .badge-danger { background: rgba(248,81,73,0.15);  color: var(--danger); }
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .status-row:last-child { border-bottom: none; }
+
+    .status-label { font-weight: 500; }
+    .status-desc  { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+
+    #loading {
+      position: fixed;
+      bottom: 16px; right: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--text-dim);
+      display: none;
+    }
+
+    .modo-avanzado-only { display: none; }
+    body.modo-avanzado .modo-avanzado-only { display: table-row; }
+    body.modo-avanzado .modo-basico-only { display: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>ESTICC</h1>
+  <label id="modo-toggle">
+    <input type="checkbox" id="modo-checkbox" />
+    <div class="toggle-track"></div>
+    <span id="modo-label">Modo Básico</span>
+  </label>
+  <span id="ultimo-analisis">Último análisis: —</span>
+</header>
+
+<nav>
+  <button class="active" data-panel="defensas">Defensas</button>
+  <button data-panel="puertos">Puertos</button>
+  <button data-panel="procesos">Procesos</button>
+  <button data-panel="autoinicio">Autoinicio</button>
+  <button data-panel="parches">Parches</button>
+</nav>
+
+<main>
+
+  <!-- Panel: Defensas -->
+  <div class="panel active" id="panel-defensas">
+    <div class="card">
+      <h2>Estado de las Defensas del Sistema</h2>
+      <button class="scan-btn" id="btn-defensas">Analizar ahora</button>
+      <div id="resultado-defensas" style="margin-top:16px;"></div>
+    </div>
+  </div>
+
+  <!-- Panel: Puertos -->
+  <div class="panel" id="panel-puertos">
+    <div class="card">
+      <h2>Puertos TCP Abiertos</h2>
+      <button class="scan-btn" id="btn-puertos">Escanear puertos</button>
+      <div id="resultado-puertos"></div>
+    </div>
+  </div>
+
+  <!-- Panel: Procesos -->
+  <div class="panel" id="panel-procesos">
+    <div class="card">
+      <h2>Procesos Activos</h2>
+      <button class="scan-btn" id="btn-procesos">Escanear procesos</button>
+      <div id="resultado-procesos"></div>
+    </div>
+  </div>
+
+  <!-- Panel: Autoinicio -->
+  <div class="panel" id="panel-autoinicio">
+    <div class="card">
+      <h2>Programas de Autoinicio</h2>
+      <button class="scan-btn" id="btn-autoinicio">Analizar autoinicio</button>
+      <div id="resultado-autoinicio"></div>
+    </div>
+  </div>
+
+  <!-- Panel: Parches -->
+  <div class="panel" id="panel-parches">
+    <div class="card">
+      <h2>Actualizaciones del Sistema</h2>
+      <button class="scan-btn" id="btn-parches">Comprobar parches</button>
+      <div id="resultado-parches"></div>
+    </div>
+  </div>
+
+</main>
+
+<div id="loading">Analizando...</div>
+
+<script src="js/auditoria.js"></script>
+</body>
+</html>
