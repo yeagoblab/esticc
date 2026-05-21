@@ -179,9 +179,82 @@
       display: none;
     }
 
-    .modo-avanzado-only { display: none; }
-    body.modo-avanzado .modo-avanzado-only { display: table-row; }
-    body.modo-avanzado .modo-basico-only { display: none; }
+    /* ── Vistas básica / avanzada ───────────────────────────── */
+    .vista-basica   { display: block; }
+    .vista-avanzada { display: none;  }
+
+    body.modo-avanzado .vista-basica   { display: none;  }
+    body.modo-avanzado .vista-avanzada { display: block; }
+
+    /* ── Vista básica: escudos grandes ──────────────────────── */
+    .escudos {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .escudo {
+      flex: 1 1 160px;
+      background: var(--bg);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 16px;
+      text-align: center;
+      transition: border-color 0.2s;
+    }
+
+    .escudo.ok     { border-color: var(--ok); }
+    .escudo.warn   { border-color: var(--warn); }
+    .escudo.danger { border-color: var(--danger); }
+
+    .escudo-icono { font-size: 32px; margin-bottom: 8px; }
+
+    .escudo-titulo {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .escudo-estado {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .escudo.ok     .escudo-estado { color: var(--ok); }
+    .escudo.warn   .escudo-estado { color: var(--warn); }
+    .escudo.danger .escudo-estado { color: var(--danger); }
+
+    .escudo-desc {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    .resumen-basico {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 16px;
+      padding: 16px;
+      background: var(--bg);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+
+    .resumen-numero {
+      font-size: 40px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .resumen-numero.ok     { color: var(--ok); }
+    .resumen-numero.warn   { color: var(--warn); }
+    .resumen-numero.danger { color: var(--danger); }
+
+    .resumen-texto { font-size: 13px; }
+    .resumen-subtexto { font-size: 12px; color: var(--text-dim); margin-top: 3px; }
   </style>
 </head>
 <body>
