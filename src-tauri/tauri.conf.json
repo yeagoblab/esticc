@@ -12,17 +12,13 @@
   },
   "tauri": {
     "allowlist": {
-      "all": false,
-      "shell": {
-        "execute": true,
-        "sidecar": true,
-        "open": false
-      }
+      "all": false
     },
     "bundle": {
       "active": true,
       "identifier": "com.esticc.audit",
-      "icon": []
+      "icon": [],
+      "externalBin": []
     },
     "security": {
       "csp": null
@@ -37,9 +33,6 @@
         "minWidth": 900,
         "minHeight": 600
       }
-    ],
-    "sidecar": {
-      "binaries": ["../backend/main"]
-    }
+    ]
   }
 }

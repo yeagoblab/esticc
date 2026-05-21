@@ -1,6 +1,6 @@
 /**
  * auditoria.js — Capa de UI para el módulo de auditoría local.
- * Se comunica con el sidecar Python a través de la API de Tauri.
+ * Comunica con el sidecar Python vía Tauri command `audit` (Rust → stdin/stdout).
  */
 
 const { invoke } = window.__TAURI__.tauri;
@@ -23,58 +23,6 @@ document.getElementById('modo-checkbox').addEventListener('change', (e) => {
   document.body.classList.toggle('modo-avanzado', avanzado);
   document.getElementById('modo-label').textContent = avanzado ? 'Modo Avanzado' : 'Modo Básico';
 });
-
-// ── IPC con sidecar ───────────────────────────────────────────────────────────
-
-let _sidecar = null;
-let _pendientes = {};
-let _buffer = '';
-
-async function getSidecar() {
-  if (_sidecar) return _sidecar;
-  const { Command } = window.__TAURI__.shell;
-  _sidecar = Command.sidecar('backend/main');
-
-  _sidecar.stdout.on('data', chunk => {
-    _buffer += chunk;
-    const lineas = _buffer.split('\n');
-    _buffer = lineas.pop();
-    for (const linea of lineas) {
-      if (!linea.trim()) continue;
-      try {
-        const msg = JSON.parse(linea);
-        const resolver = _pendientes[msg.id];
-        if (resolver) {
-          delete _pendientes[msg.id];
-          resolver(msg);
-        }
-      } catch (_) {}
-    }
-  });
-
-  await _sidecar.spawn();
-  return _sidecar;
-}
-
-function uuid() {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
-
-async function llamarBackend(action) {
-  const sidecar = await getSidecar();
-  const id = uuid();
-  const promesa = new Promise((resolve, reject) => {
-    _pendientes[id] = resolve;
-    setTimeout(() => {
-      if (_pendientes[id]) {
-        delete _pendientes[id];
-        reject(new Error('Timeout esperando respuesta del sidecar.'));
-      }
-    }, 60000);
-  });
-  await sidecar.stdin.write(JSON.stringify({ id, action }) + '\n');
-  return promesa;
-}
 
 // ── Utilidades de render ──────────────────────────────────────────────────────
 
@@ -241,17 +189,16 @@ async function escanear(action, btnId, resultadoId, renderer) {
   btn.disabled = true;
   setLoading(true);
   try {
-    const msg = await llamarBackend(action);
-    if (msg.error) {
-      div.innerHTML = `<p style="color:var(--danger);">Error: ${msg.error}</p>`;
-    } else if (!msg.result.ok) {
-      div.innerHTML = `<p style="color:var(--danger);">Error: ${msg.result.error}</p>`;
+    // Rust gestiona el sidecar; aquí solo invocamos el command `audit`.
+    const resultado = await invoke('audit', { action });
+    if (!resultado.ok) {
+      div.innerHTML = `<p style="color:var(--danger);">Error del escáner: ${resultado.error}</p>`;
     } else {
-      div.innerHTML = renderer(msg.result.data);
+      div.innerHTML = renderer(resultado.data);
       actualizarTimestamp();
     }
   } catch (e) {
-    div.innerHTML = `<p style="color:var(--danger);">Error de comunicación: ${e.message}</p>`;
+    div.innerHTML = `<p style="color:var(--danger);">Error de comunicación: ${e}</p>`;
   } finally {
     btn.disabled = false;
     setLoading(false);
