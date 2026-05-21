@@ -122,8 +122,10 @@ fn main() {
             let script = python_script_path();
             eprintln!("[setup] Lanzando sidecar: python {:?}", script);
 
+            let backend_dir = script.parent().expect("backend/ sin parent");
             let mut child = Command::new("python")
                 .arg(&script)
+                .current_dir(backend_dir)
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::inherit())
