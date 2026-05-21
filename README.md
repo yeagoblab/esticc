@@ -1,0 +1,171 @@
+# ESTICC — Panel de Seguridad Local
+
+**ESTICC** (Entorno de Seguridad TIC) es un panel de seguridad educativo de código abierto para Windows. Combina auditoría local del sistema, inteligencia OSINT en tiempo real, simulación de amenazas y enciclopedia de malware en una sola interfaz de escritorio.
+
+Pensado para estudiantes, PYMEs y usuarios individuales que quieran entender el estado de seguridad de su equipo sin necesidad de conocimientos técnicos previos.
+
+---
+
+## Características
+
+### 🛡️ Auditoría Local
+Escanea el sistema Windows en tiempo real:
+- **Defensas** — estado de Firewall, Windows Defender y BitLocker
+- **Puertos** — conexiones TCP activas y sockets en escucha
+- **Procesos** — procesos activos con alertas de CPU/RAM elevada y ejecutables sin ruta
+- **Autoinicio** — entradas de registro (Run/RunOnce) y tareas programadas
+- **Parches** — actualizaciones pendientes de Windows Update
+
+### 📡 Radar OSINT
+Monitoriza 6 fuentes de inteligencia de ciberseguridad en tiempo real y correlaciona las amenazas publicadas con el estado del sistema local:
+- NIST NVD · Bleeping Computer · Krebs on Security
+- SANS Internet Storm Center · The Hacker News · Reddit r/netsec
+- Alerta cuando un puerto abierto coincide con una amenaza publicada
+- Extracción automática de CVEs y correlación de protocolos
+
+### 🎓 Simulador de Amenazas
+Modo demostración educativo con 3 escenarios de ataque ficticios:
+1. Puerto sospechoso abierto (firma de RAT en puerto 4444)
+2. Proceso malicioso activo (minero/ransomware simulado)
+3. Sistema completamente desprotegido (Defender + Firewall desactivados, 14 parches pendientes)
+
+### 📖 Enciclopedia de Malware
+Base de conocimiento con 10 categorías de amenazas, búsqueda en tiempo real y ficha técnica completa con:
+- Técnicas MITRE ATT&CK
+- Indicadores de Compromiso (IOCs)
+- CVEs asociados
+- Vectores de ataque, síntomas y medidas de prevención
+
+### 🔄 Modo Básico / Avanzado
+Toggle global que cambia la presentación de todos los paneles:
+- **Básico** — escudos visuales con estado OK/WARN/DANGER, orientado a usuarios sin conocimientos técnicos
+- **Avanzado** — tablas de datos completos, CVEs, IOCs y detalles técnicos
+
+---
+
+## Stack tecnológico
+
+| Capa | Tecnología |
+|---|---|
+| Shell de escritorio | [Tauri 1.x](https://tauri.app/) (Rust) |
+| Backend / sidecar | Python 3.8+ |
+| Frontend | HTML · CSS · JavaScript vanilla |
+| IPC | stdin/stdout JSON newline-delimited |
+| Feeds OSINT | `feedparser` + `concurrent.futures` |
+| Escaneo local | `psutil` + WMI / PowerShell |
+
+---
+
+## Requisitos previos
+
+- **Windows 10/11** (64-bit)
+- **Python 3.8+** con pip
+- **Rust** + **Cargo** ([rustup.rs](https://rustup.rs/))
+- **Tauri CLI** (`cargo install tauri-cli --version "^1.0"`)
+- **Node.js** no requerido (el frontend es HTML/CSS/JS puro)
+
+---
+
+## Instalación
+
+```bash
+# 1. Clonar el repositorio
+git clone https://github.com/yeagoblab/esticc.git
+cd esticc
+
+# 2. Instalar dependencias Python del sidecar
+pip install -r backend/requirements.txt
+
+# 3. Arrancar en modo desarrollo
+cargo tauri dev
+```
+
+> La primera compilación de Rust puede tardar varios minutos.
+
+---
+
+## Estructura del proyecto
+
+```
+esticc/
+├── backend/
+│   ├── main.py                        # Router IPC (stdin/stdout JSON)
+│   ├── requirements.txt               # psutil, feedparser
+│   ├── modulo_02_auditoria/
+│   │   ├── escaner_puertos.py         # Conexiones TCP activas
+│   │   ├── escaner_procesos.py        # Procesos + CPU/RAM
+│   │   ├── analisis_autoinicio.py     # Registro Run + tareas
+│   │   ├── estado_defensas.py         # Firewall, Defender, BitLocker
+│   │   └── verificador_parches.py     # Windows Update pendientes
+│   └── modulo_03_radar/
+│       ├── lector_rss.py              # Fetch concurrente de 6 feeds RSS
+│       └── correlacion.py             # Correlación puerto/CVE con estado local
+├── frontend/
+│   ├── index.html                     # SPA única con todos los paneles
+│   ├── css/
+│   │   ├── simulador.css
+│   │   ├── enciclopedia.css
+│   │   └── radar.css
+│   └── js/
+│       ├── auditoria.js               # Renderers + botones de escaneo
+│       ├── simulador.js               # Escenarios de demo + interceptor
+│       ├── enciclopedia.js            # Base de datos + buscador + modal
+│       └── radar.js                   # Fetch OSINT + renderizado dual
+└── src-tauri/
+    ├── src/main.rs                    # Sidecar spawn + IPC Rust↔Python
+    ├── Cargo.toml
+    └── tauri.conf.json
+```
+
+---
+
+## Protocolo IPC
+
+El sidecar Python se comunica con Rust mediante JSON newline-delimited por stdin/stdout:
+
+```jsonc
+// Solicitud (Rust → Python)
+{ "id": "42", "action": "scan_ports" }
+{ "id": "43", "action": "radar_correlate", "context": { "noticias": [...], "puertos": [...] } }
+
+// Respuesta (Python → Rust)
+{ "id": "42", "result": { "ok": true, "data": [...] } }
+{ "id": "43", "error": "descripción del error" }
+```
+
+Acciones disponibles:
+
+| Acción | Módulo | Descripción |
+|---|---|---|
+| `scan_defenses` | auditoria | Firewall, Defender, BitLocker |
+| `scan_ports` | auditoria | Conexiones TCP activas |
+| `scan_processes` | auditoria | Procesos con métricas |
+| `scan_startup` | auditoria | Autoinicio y tareas programadas |
+| `scan_patches` | auditoria | Actualizaciones pendientes |
+| `radar_fetch` | radar | Descarga las últimas noticias RSS |
+| `radar_correlate` | radar | Cruza noticias con el estado local |
+
+---
+
+## Uso del Radar OSINT
+
+Para obtener correlaciones precisas:
+
+1. Ejecuta primero el escáner de **Puertos** (panel *Puertos*)
+2. Ve al panel **📡 Radar OSINT** y pulsa *Actualizar radar*
+3. ESTICC descarga las últimas noticias de las 6 fuentes y compara los puertos abiertos con las amenazas publicadas
+4. Las alertas se clasifican en **Crítico** (puerto coincide con amenaza) y **Alto** (CVE publicado relevante)
+
+---
+
+## Notas de seguridad
+
+- ESTICC **solo realiza lectura pasiva** del sistema local. No modifica ningún archivo, configuración ni ajuste de red.
+- El Radar OSINT realiza peticiones HTTP GET a feeds RSS públicos. No envía ningún dato del sistema a servidores externos.
+- Los datos del simulador son **completamente ficticios** y se generan en el frontend sin tocar el sistema real.
+
+---
+
+## Licencia
+
+MIT — libre para uso educativo y personal.
