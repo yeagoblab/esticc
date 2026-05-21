@@ -180,3 +180,27 @@ body.modo-demo #panel-simulador { display: block; }
   font-size: 12px;
   font-weight: 600;
 }
+
+.tarjeta-edu-footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  background: rgba(88,166,255,0.04);
+}
+
+.tarjeta-edu-enc-btn {
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.15s;
+  width: 100%;
+  text-align: left;
+}
+
+.tarjeta-edu-enc-btn:hover {
+  background: rgba(88,166,255,0.12);
+}
