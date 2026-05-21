@@ -4,7 +4,8 @@
     "beforeDevCommand": "",
     "beforeBuildCommand": "",
     "devPath": "../frontend",
-    "distDir": "../frontend"
+    "distDir": "../frontend",
+    "withGlobalTauri": true
   },
   "package": {
     "productName": "ESTICC",

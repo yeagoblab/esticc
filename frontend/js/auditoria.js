@@ -3,7 +3,12 @@
  * Comunica con el sidecar Python vía Tauri command `audit` (Rust → stdin/stdout).
  */
 
-const { invoke } = window.__TAURI__.tauri;
+function invoke(cmd, args) {
+  if (!window.__TAURI__) {
+    return Promise.reject('window.__TAURI__ no disponible. ¿Falta withGlobalTauri en tauri.conf.json?');
+  }
+  return window.__TAURI__.tauri.invoke(cmd, args);
+}
 
 // ── Navegación ────────────────────────────────────────────────────────────────
 
