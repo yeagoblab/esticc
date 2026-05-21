@@ -1,0 +1,311 @@
+/* ── Buscador ────────────────────────────────────────────────────────────── */
+
+.enc-buscador-wrap {
+  position: relative;
+  margin-bottom: 14px;
+}
+
+.enc-buscador-wrap::before {
+  content: '🔍';
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+#enc-buscar {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14px;
+  padding: 9px 14px 9px 38px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+#enc-buscar:focus { border-color: var(--accent); }
+#enc-buscar::placeholder { color: var(--text-dim); }
+
+/* ── Chips de categoría ─────────────────────────────────────────────────── */
+
+.enc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.enc-chip {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.enc-chip:hover { border-color: var(--accent); color: var(--text); }
+
+.enc-chip.activo {
+  background: rgba(88,166,255,0.12);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── Grid de cards ──────────────────────────────────────────────────────── */
+
+.enc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.enc-sin-resultados {
+  color: var(--text-dim);
+  font-size: 14px;
+  padding: 32px 0;
+  text-align: center;
+  grid-column: 1 / -1;
+}
+
+/* ── Card ───────────────────────────────────────────────────────────────── */
+
+.enc-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.12s;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.enc-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.enc-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.enc-icono { font-size: 28px; line-height: 1; }
+
+.enc-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+
+.enc-peligro {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.3px;
+}
+
+.enc-peligro.critico { background: rgba(248,81,73,0.15);  color: var(--danger); }
+.enc-peligro.alto    { background: rgba(210,153,34,0.15); color: var(--warn);   }
+.enc-peligro.medio   { background: rgba(88,166,255,0.12); color: var(--accent); }
+
+.enc-categoria-tag {
+  font-size: 10px;
+  color: var(--text-dim);
+  background: var(--bg);
+  padding: 2px 7px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.enc-nombre {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.enc-desc-corta {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+/* ── Detalles extra en modo avanzado ────────────────────────────────────── */
+
+.enc-avanzado-extra { display: none; }
+body.modo-avanzado .enc-avanzado-extra { display: block; }
+
+.enc-vector-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 3px;
+}
+
+.enc-vector-texto { font-size: 12px; color: var(--text); line-height: 1.4; }
+
+.enc-ejemplos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.enc-ejemplo-tag {
+  font-size: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 1px 7px;
+  border-radius: 8px;
+}
+
+.enc-card-footer {
+  font-size: 11px;
+  color: var(--accent);
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Modal ──────────────────────────────────────────────────────────────── */
+
+#enc-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+#enc-modal-overlay.visible { display: flex; }
+
+#enc-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 640px;
+  max-height: 85vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.enc-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 1;
+}
+
+.enc-modal-icono { font-size: 36px; }
+
+.enc-modal-titulo { font-size: 20px; font-weight: 700; }
+.enc-modal-subtitulo { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+
+#enc-modal-cerrar {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+#enc-modal-cerrar:hover { border-color: var(--danger); color: var(--danger); }
+
+.enc-modal-body { padding: 20px 24px 24px; display: grid; gap: 20px; }
+
+.enc-modal-seccion h3 {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.enc-modal-seccion p { font-size: 14px; line-height: 1.65; color: var(--text); }
+
+.enc-lista {
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.enc-lista li {
+  font-size: 13px;
+  color: var(--text);
+  padding-left: 18px;
+  position: relative;
+  line-height: 1.5;
+}
+
+.enc-lista li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+}
+
+.enc-lista.sintomas li::before { color: var(--warn); }
+.enc-lista.prevencion li::before { color: var(--ok); }
+
+.enc-ejemplos-modal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.enc-ejemplo-modal {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.enc-herramienta-modal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgba(88,166,255,0.1);
+  border: 1px solid rgba(88,166,255,0.3);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 4px;
+}

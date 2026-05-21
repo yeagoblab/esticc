@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ESTICC — Panel de Seguridad</title>
   <link rel="stylesheet" href="css/simulador.css" />
+  <link rel="stylesheet" href="css/enciclopedia.css" />
   <style>
     :root {
       --bg: #0d1117;
@@ -305,6 +306,7 @@
   <button data-panel="procesos">Procesos</button>
   <button data-panel="autoinicio">Autoinicio</button>
   <button data-panel="parches">Parches</button>
+  <button data-panel="enciclopedia">📖 Enciclopedia</button>
 </nav>
 
 <main>
@@ -354,11 +356,64 @@
     </div>
   </div>
 
+  <!-- Panel: Enciclopedia -->
+  <div class="panel" id="panel-enciclopedia">
+    <div class="card">
+      <h2>Enciclopedia de Malware</h2>
+      <div class="enc-buscador-wrap">
+        <input type="text" id="enc-buscar" placeholder="Buscar por nombre, síntoma, vector de ataque…" autocomplete="off" />
+      </div>
+      <div id="enc-chips" class="enc-chips"></div>
+      <div id="enc-grid" class="enc-grid"></div>
+    </div>
+  </div>
+
 </main>
+
+<!-- Modal de detalle de amenaza -->
+<div id="enc-modal-overlay">
+  <div id="enc-modal" role="dialog" aria-modal="true">
+    <div class="enc-modal-header">
+      <span class="enc-modal-icono" id="enc-modal-icono"></span>
+      <div>
+        <div class="enc-modal-titulo" id="enc-modal-titulo"></div>
+        <div class="enc-modal-subtitulo" id="enc-modal-subtitulo"></div>
+      </div>
+      <button id="enc-modal-cerrar" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="enc-modal-body">
+      <div class="enc-modal-seccion">
+        <h3>¿Qué es?</h3>
+        <p id="enc-modal-descripcion"></p>
+      </div>
+      <div class="enc-modal-seccion">
+        <h3>Vector de ataque</h3>
+        <p id="enc-modal-vector"></p>
+      </div>
+      <div class="enc-modal-seccion">
+        <h3>Señales de infección</h3>
+        <ul class="enc-lista sintomas" id="enc-modal-sintomas"></ul>
+      </div>
+      <div class="enc-modal-seccion">
+        <h3>Cómo prevenirlo</h3>
+        <ul class="enc-lista prevencion" id="enc-modal-prevencion"></ul>
+      </div>
+      <div class="enc-modal-seccion">
+        <h3>Ejemplos conocidos</h3>
+        <div class="enc-ejemplos-modal" id="enc-modal-ejemplos"></div>
+      </div>
+      <div class="enc-modal-seccion">
+        <h3>Herramienta recomendada</h3>
+        <div class="enc-herramienta-modal" id="enc-modal-herramienta"></div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div id="loading">Analizando...</div>
 
 <script src="js/simulador.js"></script>
+<script src="js/enciclopedia.js"></script>
 <script src="js/auditoria.js"></script>
 </body>
 </html>
