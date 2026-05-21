@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ESTICC — Panel de Seguridad</title>
+  <link rel="stylesheet" href="css/simulador.css" />
   <style>
     :root {
       --bg: #0d1117;
@@ -266,8 +267,37 @@
     <div class="toggle-track"></div>
     <span id="modo-label">Modo Básico</span>
   </label>
+  <button id="btn-activar-demo">⚠️ Modo Demo</button>
   <span id="ultimo-analisis">Último análisis: —</span>
 </header>
+
+<div id="banner-demo">
+  <span class="banner-icono">⚠️</span>
+  MODO DEMOSTRACIÓN ACTIVO — Los datos mostrados son ficticios con fines educativos
+  <button id="btn-salir-demo">✕ Salir del modo demo</button>
+</div>
+
+<div id="panel-simulador">
+  <div class="sim-titulo">Selecciona un escenario de amenaza</div>
+  <div class="sim-escenarios">
+    <button class="sim-btn" data-escenario="1">
+      <span class="sim-nivel nivel-critico">CRÍTICO</span>
+      <span class="sim-nombre">🌐 Puerto sospechoso abierto</span>
+      <span class="sim-desc">Puerto 4444 — firma de herramienta de acceso remoto (RAT)</span>
+    </button>
+    <button class="sim-btn" data-escenario="2">
+      <span class="sim-nivel nivel-critico">CRÍTICO</span>
+      <span class="sim-nombre">⚙️ Proceso malicioso activo</span>
+      <span class="sim-desc">svchost32.exe al 99% CPU sin ruta — posible minero o ransomware</span>
+    </button>
+    <button class="sim-btn" data-escenario="3">
+      <span class="sim-nivel nivel-alto">ALTO</span>
+      <span class="sim-nombre">🛡️ Sistema completamente desprotegido</span>
+      <span class="sim-desc">Defender + Firewall desactivados · 14 parches pendientes · 30 días sin analizar</span>
+    </button>
+  </div>
+  <div class="sim-instruccion">Selecciona un escenario y pulsa cualquier botón de análisis para ver cómo reacciona ESTICC.</div>
+</div>
 
 <nav>
   <button class="active" data-panel="defensas">Defensas</button>
@@ -328,6 +358,7 @@
 
 <div id="loading">Analizando...</div>
 
+<script src="js/simulador.js"></script>
 <script src="js/auditoria.js"></script>
 </body>
 </html>

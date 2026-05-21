@@ -4,6 +4,9 @@
  */
 
 function invoke(cmd, args) {
+  if (cmd === 'audit' && window.SIMULADOR?.activo) {
+    return window.SIMULADOR.interceptar(args.action);
+  }
   if (!window.__TAURI__) {
     return Promise.reject('window.__TAURI__ no disponible. ¿Falta withGlobalTauri en tauri.conf.json?');
   }
@@ -310,12 +313,13 @@ async function escanear(action, btnId, resultadoId, renderer) {
   btn.disabled = true;
   setLoading(true);
   try {
-    // Rust gestiona el sidecar; aquí solo invocamos el command `audit`.
     const resultado = await invoke('audit', { action });
     if (!resultado.ok) {
       div.innerHTML = `<p style="color:var(--danger);">Error del escáner: ${resultado.error}</p>`;
     } else {
-      div.innerHTML = renderer(resultado.data);
+      const tarjetaInfo = window.SIMULADOR?.activo ? window.SIMULADOR.tarjeta(action) : null;
+      const tarjetaHtml = tarjetaInfo ? window.SIMULADOR.renderTarjeta(tarjetaInfo) : '';
+      div.innerHTML = renderer(resultado.data) + tarjetaHtml;
       actualizarTimestamp();
     }
   } catch (e) {
