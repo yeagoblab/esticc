@@ -6,6 +6,7 @@
   <title>ESTICC — Panel de Seguridad</title>
   <link rel="stylesheet" href="css/simulador.css" />
   <link rel="stylesheet" href="css/enciclopedia.css" />
+  <link rel="stylesheet" href="css/radar.css" />
   <style>
     :root {
       --bg: #0d1117;
@@ -307,6 +308,7 @@
   <button data-panel="autoinicio">Autoinicio</button>
   <button data-panel="parches">Parches</button>
   <button data-panel="enciclopedia">📖 Enciclopedia</button>
+  <button data-panel="radar">📡 Radar OSINT</button>
 </nav>
 
 <main>
@@ -353,6 +355,18 @@
       <h2>Actualizaciones del Sistema</h2>
       <button class="scan-btn" id="btn-parches">Comprobar parches</button>
       <div id="resultado-parches"></div>
+    </div>
+  </div>
+
+  <!-- Panel: Radar OSINT -->
+  <div class="panel" id="panel-radar">
+    <div class="card">
+      <h2>Radar de Amenazas OSINT</h2>
+      <div class="radar-toolbar">
+        <button class="scan-btn" id="btn-radar">Actualizar radar</button>
+        <span class="radar-meta">Monitoriza 6 fuentes · NIST NVD · Bleeping Computer · Krebs · SANS · The Hacker News · Reddit r/netsec</span>
+      </div>
+      <div id="resultado-radar"></div>
     </div>
   </div>
 
@@ -428,5 +442,6 @@
 <script src="js/simulador.js"></script>
 <script src="js/enciclopedia.js"></script>
 <script src="js/auditoria.js"></script>
+<script src="js/radar.js"></script>
 </body>
 </html>

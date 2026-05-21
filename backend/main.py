@@ -4,6 +4,7 @@ Recibe mensajes JSON por stdin (uno por línea) y responde por stdout.
 
 Protocolo:
   Entrada:  {"id": "uuid", "action": "scan_ports"}
+            {"id": "uuid", "action": "radar_correlate", "context": {...}}
   Salida:   {"id": "uuid", "result": {...}}  o  {"id": "uuid", "error": "..."}
 """
 import sys
@@ -16,14 +17,18 @@ from modulo_02_auditoria import (
     estado_defensas,
     verificador_parches,
 )
+from modulo_03_radar import lector_rss, correlacion
 
-ACCIONES = {
-    "scan_ports":    escaner_puertos.run,
+ACCIONES_SIMPLES = {
+    "scan_ports":     escaner_puertos.run,
     "scan_processes": escaner_procesos.run,
-    "scan_startup":  analisis_autoinicio.run,
-    "scan_defenses": estado_defensas.run,
-    "scan_patches":  verificador_parches.run,
+    "scan_startup":   analisis_autoinicio.run,
+    "scan_defenses":  estado_defensas.run,
+    "scan_patches":   verificador_parches.run,
+    "radar_fetch":    lector_rss.run,
 }
+
+ACCIONES_CONOCIDAS = set(ACCIONES_SIMPLES) | {"radar_correlate"}
 
 
 def enviar(mensaje: dict):
@@ -41,15 +46,18 @@ def main():
             enviar({"id": None, "error": f"JSON inválido: {e}"})
             continue
 
-        req_id  = req.get("id")
-        action  = req.get("action", "")
+        req_id = req.get("id")
+        action = req.get("action", "")
 
-        if action not in ACCIONES:
+        if action not in ACCIONES_CONOCIDAS:
             enviar({"id": req_id, "error": f"Acción desconocida: '{action}'"})
             continue
 
         try:
-            resultado = ACCIONES[action]()
+            if action == "radar_correlate":
+                resultado = correlacion.run(req.get("context", {}))
+            else:
+                resultado = ACCIONES_SIMPLES[action]()
             enviar({"id": req_id, "result": resultado})
         except Exception as e:
             enviar({"id": req_id, "error": str(e)})

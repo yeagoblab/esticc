@@ -317,6 +317,11 @@ async function escanear(action, btnId, resultadoId, renderer) {
     if (!resultado.ok) {
       div.innerHTML = `<p style="color:var(--danger);">Error del escáner: ${resultado.error}</p>`;
     } else {
+      // Guardar datos crudos para que el Radar OSINT pueda correlacionar
+      window.ULTIMO_SCAN = window.ULTIMO_SCAN || {};
+      if (action === 'scan_ports')     window.ULTIMO_SCAN.puertos  = resultado.data;
+      if (action === 'scan_processes') window.ULTIMO_SCAN.procesos = resultado.data;
+
       const tarjetaInfo = window.SIMULADOR?.activo ? window.SIMULADOR.tarjeta(action) : null;
       const tarjetaHtml = tarjetaInfo ? window.SIMULADOR.renderTarjeta(tarjetaInfo) : '';
       div.innerHTML = renderer(resultado.data) + tarjetaHtml;

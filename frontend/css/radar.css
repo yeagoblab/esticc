@@ -1,0 +1,253 @@
+/* ── Radar OSINT — estilos del panel ─────────────────────────────────────── */
+
+.radar-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.radar-meta {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* ── Contadores modo básico ─────────────────────────────────────────────── */
+
+.radar-escudos-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.radar-contador {
+  flex: 1 1 140px;
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+}
+
+.radar-contador.critico { border-color: var(--danger); }
+.radar-contador.alto    { border-color: var(--warn); }
+.radar-contador.ok      { border-color: var(--ok); }
+
+.radar-contador-num {
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.radar-contador.critico .radar-contador-num { color: var(--danger); }
+.radar-contador.alto    .radar-contador-num { color: var(--warn); }
+.radar-contador.ok      .radar-contador-num { color: var(--ok); }
+
+.radar-contador-label {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 6px;
+}
+
+/* ── Alertas modo básico ────────────────────────────────────────────────── */
+
+.radar-alertas-basico {
+  margin-top: 16px;
+}
+
+.radar-alerta-basica {
+  border-left: 4px solid;
+  padding: 12px 14px;
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 8px;
+}
+
+.radar-alerta-basica.critico {
+  border-left-color: var(--danger);
+  background: rgba(248,81,73,0.07);
+}
+
+.radar-alerta-basica.alto {
+  border-left-color: var(--warn);
+  background: rgba(210,153,34,0.07);
+}
+
+.radar-alerta-basica-titulo {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.radar-alerta-basica.critico .radar-alerta-basica-titulo { color: var(--danger); }
+.radar-alerta-basica.alto    .radar-alerta-basica-titulo { color: var(--warn); }
+
+.radar-alerta-basica-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+/* ── Alertas modo avanzado ──────────────────────────────────────────────── */
+
+.radar-alertas-titulo,
+.radar-noticias-titulo {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 10px;
+}
+
+.radar-alerta {
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  border-left: 4px solid;
+}
+
+.radar-alerta.critico {
+  background: rgba(248,81,73,0.07);
+  border-left-color: var(--danger);
+}
+
+.radar-alerta.alto {
+  background: rgba(210,153,34,0.07);
+  border-left-color: var(--warn);
+}
+
+.radar-alerta-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.radar-alerta-nivel {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.radar-alerta-nivel.critico {
+  background: rgba(248,81,73,0.2);
+  color: var(--danger);
+}
+
+.radar-alerta-nivel.alto {
+  background: rgba(210,153,34,0.2);
+  color: var(--warn);
+}
+
+.radar-alerta-coincidencia {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 12px;
+  color: var(--accent);
+  background: rgba(88,166,255,0.1);
+  padding: 1px 7px;
+  border-radius: 4px;
+}
+
+.radar-alerta-explicacion {
+  font-size: 13px;
+  line-height: 1.55;
+  margin-bottom: 8px;
+}
+
+.radar-alerta-noticia {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.radar-alerta-noticia a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.radar-alerta-noticia a:hover { text-decoration: underline; }
+
+.radar-cve-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+  margin-bottom: 6px;
+}
+
+.radar-cve-tag {
+  font-size: 10px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(248,81,73,0.12);
+  color: var(--danger);
+  border: 1px solid rgba(248,81,73,0.25);
+}
+
+/* ── Tabla de noticias ──────────────────────────────────────────────────── */
+
+.radar-sev {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.radar-sev.critico { background: var(--danger); box-shadow: 0 0 4px var(--danger); }
+.radar-sev.alto    { background: var(--warn); }
+.radar-sev.info    { background: var(--border); }
+
+.radar-noticia-titulo a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.radar-noticia-titulo a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* ── Estados vacíos / demo ──────────────────────────────────────────────── */
+
+.radar-sin-alertas {
+  text-align: center;
+  padding: 28px;
+  color: var(--ok);
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+.radar-sin-alertas-icono {
+  font-size: 34px;
+  margin-bottom: 8px;
+}
+
+.radar-demo-notice {
+  background: rgba(88,166,255,0.06);
+  border: 1px solid rgba(88,166,255,0.2);
+  border-radius: 8px;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
+  margin-top: 16px;
+}
+
+.radar-vacio {
+  text-align: center;
+  padding: 40px 24px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.radar-vacio-icono {
+  font-size: 40px;
+  margin-bottom: 12px;
+}

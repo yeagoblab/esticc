@@ -32,6 +32,7 @@ struct AppState {
 #[tauri::command]
 async fn audit(
     action: String,
+    payload: Option<Value>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Value, String> {
     let id = next_id();
@@ -39,12 +40,20 @@ async fn audit(
 
     state.pending.lock().unwrap().insert(id.clone(), tx);
 
-    let msg = format!("{}\n", serde_json::json!({ "id": id, "action": action }));
+    let mut msg = serde_json::json!({ "id": id, "action": action });
+    if let Some(p) = payload {
+        if let (Some(obj), Some(p_obj)) = (msg.as_object_mut(), p.as_object()) {
+            for (k, v) in p_obj {
+                obj.insert(k.clone(), v.clone());
+            }
+        }
+    }
+    let line = format!("{}\n", msg);
     state
         .stdin
         .lock()
         .unwrap()
-        .write_all(msg.as_bytes())
+        .write_all(line.as_bytes())
         .map_err(|e| format!("Error escribiendo al sidecar: {e}"))?;
 
     rx.await
