@@ -32,10 +32,15 @@ ACCIONES_CONOCIDAS = set(ACCIONES_SIMPLES) | {"radar_correlate"}
 
 
 def enviar(mensaje: dict):
-    print(json.dumps(mensaje, ensure_ascii=False), flush=True)
+    # ensure_ascii=True: solo bytes ASCII al pipe → sin problemas de codepage en Windows
+    print(json.dumps(mensaje, ensure_ascii=True), flush=True)
 
 
 def main():
+    # Forzar UTF-8 en el pipe IPC independientemente del codepage de Windows
+    sys.stdin.reconfigure(encoding='utf-8')
+    sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
+
     for linea in sys.stdin:
         linea = linea.strip()
         if not linea:
