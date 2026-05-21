@@ -24,10 +24,19 @@ Monitoriza 6 fuentes de inteligencia de ciberseguridad en tiempo real y correlac
 - Extracción automática de CVEs y correlación de protocolos
 
 ### 🎓 Simulador de Amenazas
-Modo demostración educativo con 3 escenarios de ataque ficticios:
-1. Puerto sospechoso abierto (firma de RAT en puerto 4444)
-2. Proceso malicioso activo (minero/ransomware simulado)
-3. Sistema completamente desprotegido (Defender + Firewall desactivados, 14 parches pendientes)
+Modo demostración educativo con **8 escenarios de ataque** con datos ficticios completos (5 escáneres cada uno).
+Cada escenario incluye una tarjeta educativa con explicación, pasos de respuesta y un botón de acceso directo a la entrada correspondiente de la Enciclopedia:
+
+| # | Escenario | Amenaza |
+|---|---|---|
+| 1 | Puerto 4444 abierto | Troyano de Acceso Remoto (RAT) |
+| 2 | svchost32.exe al 99% CPU | Cryptojacker disfrazado |
+| 3 | Sistema abandonado (14 parches) | Exposición general |
+| 4 | Exfiltración SMTP puertos 25/587 | Keylogger (Agent Tesla) |
+| 5 | xmrig.exe al 95% + pool stratum | Cryptojacker (XMRig) |
+| 6 | Cifrado activo + vssadmin + Defender caído | Ransomware en curso |
+| 7 | 4 conexiones SMB + MS17-010 sin parchear | Gusano de Red (EternalBlue) |
+| 8 | Beacon C2 powershell + dropper .vbs | Botnet zombie (Emotet) |
 
 ### 📖 Enciclopedia de Malware
 Base de conocimiento con 10 categorías de amenazas, búsqueda en tiempo real y ficha técnica completa con:
