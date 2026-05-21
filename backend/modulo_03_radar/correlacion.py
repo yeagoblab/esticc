@@ -3,6 +3,8 @@ Motor de correlación de riesgos.
 Cruza noticias OSINT con los hallazgos del escáner local.
 Eleva a Alerta Crítica cuando hay coincidencia directa.
 """
+from __future__ import annotations
+
 import re
 import time
 from datetime import datetime, timezone
