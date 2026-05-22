@@ -177,4 +177,4 @@ Para obtener correlaciones precisas:
 
 ## Licencia
 
-MIT — libre para uso educativo y personal.
+Este proyecto está bajo la Licencia MIT. Para más detalles, consulta el archivo [LICENSE](LICENSE) en la raíz del repositorio.
