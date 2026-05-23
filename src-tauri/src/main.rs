@@ -85,20 +85,34 @@ async fn audit(
 
 // ── Ruta del script Python del sidecar ────────────────────────────────────────
 
-fn python_script_path() -> std::path::PathBuf {
-    // Obtener la ruta del ejecutable de Tauri en tiempo de ejecución
-    // En desarrollo: .../ESTICC/src-tauri/target/debug/esticc.exe
+fn project_root() -> std::path::PathBuf {
     let mut p = std::env::current_exe().expect("No se puede obtener la ruta del ejecutable.");
-
     p.pop();  // Eliminar "esticc.exe"  → .../ESTICC/src-tauri/target/debug/
     p.pop();  // Eliminar "debug/"      → .../ESTICC/src-tauri/target/
     p.pop();  // Eliminar "target/"     → .../ESTICC/src-tauri/
     p.pop();  // Eliminar "src-tauri/"  → .../ESTICC/
+    p
+}
 
-    p.push("backend");   // Bajar a la carpeta del sidecar
-    p.push("main.py");   // Apuntar al script principal
+fn python_script_path() -> std::path::PathBuf {
+    project_root().join("backend").join("main.py")
+}
 
-    p  // Resultado: .../ESTICC/backend/main.py
+// Devuelve el ejecutable Python del venv si existe; si no, cae al Python del sistema.
+fn python_executable() -> std::path::PathBuf {
+    let venv_python = project_root()
+        .join("backend")
+        .join(".venv")
+        .join("Scripts")
+        .join("python.exe");
+
+    if venv_python.exists() {
+        eprintln!("[setup] Usando Python del entorno virtual: {:?}", venv_python);
+        venv_python
+    } else {
+        eprintln!("[setup] Entorno virtual no encontrado, usando Python del sistema.");
+        std::path::PathBuf::from("python")
+    }
 }
 
 // ── Lector de stdout del sidecar ──────────────────────────────────────────────
@@ -182,7 +196,7 @@ fn main() {
             let backend_dir = script.parent().expect("backend/ sin parent");
 
             // Lanzar el proceso Python con pipes para stdin y stdout (protocolo IPC)
-            let mut child = Command::new("python")
+            let mut child = Command::new(python_executable())
                 .arg(&script)                    // Ruta al script main.py
                 .current_dir(backend_dir)         // Directorio de trabajo = backend/ (necesario para imports)
                 .stdin(Stdio::piped())            // stdin del hijo conectado a un pipe (Rust escribe aquí)

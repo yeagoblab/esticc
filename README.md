@@ -68,28 +68,29 @@ Toggle global que cambia la presentación de todos los paneles:
 ## Requisitos previos
 
 - **Windows 10/11** (64-bit)
-- **Python 3.8+** con pip
-- **Rust** + **Cargo** ([rustup.rs](https://rustup.rs/))
-- **Tauri CLI** (`cargo install tauri-cli --version "^1.0"`)
-- **Node.js** no requerido (el frontend es HTML/CSS/JS puro)
+- **Python 3.8+** — [python.org](https://www.python.org/downloads/) *(marcar "Add Python to PATH")*
+- **Rust + Cargo** — [rustup.rs](https://rustup.rs/) *(Tauri CLI se instala automáticamente)*
+- **Node.js** no requerido
 
 ---
 
 ## Instalación
 
-```bash
-# 1. Clonar el repositorio
+```bat
+:: 1. Clonar el repositorio
 git clone https://github.com/yeagoblab/esticc.git
 cd esticc
 
-# 2. Instalar dependencias Python del sidecar
-pip install -r backend/requirements.txt
+:: 2. Configurar entorno (una sola vez)
+setup.bat
 
-# 3. Arrancar en modo desarrollo
-cargo tauri dev
+:: 3. Iniciar la aplicación
+run.bat
 ```
 
-> La primera compilación de Rust puede tardar varios minutos.
+`setup.bat` verifica las dependencias, crea un entorno virtual Python aislado e instala Tauri CLI si es necesario.
+
+> La primera compilación de Rust puede tardar varios minutos. Las siguientes serán mucho más rápidas.
 
 ---
 
