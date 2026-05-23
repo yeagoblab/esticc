@@ -4,11 +4,11 @@ modulo_05_historial/historial_esticc.py
 Persistencia del historial de escaneos propios de ESTICC.
 
 ¿Dónde se guardan los datos?
-  %APPDATA%\ESTICC\historial.json
+  %APPDATA%/ESTICC/historial.json
 
   %APPDATA% es una variable de entorno de Windows que apunta a la carpeta
   de datos de aplicación del usuario actual, normalmente:
-    C:\Users\<NombreUsuario>\AppData\Roaming\
+    C:/Users/<NombreUsuario>/AppData/Roaming/
 
   Elegimos %APPDATA% en lugar de la carpeta del programa por varias razones:
     1. No requiere permisos de administrador para escribir.
@@ -61,7 +61,7 @@ def _ruta_historial() -> Path:
     """
     Calcula y devuelve la ruta completa al archivo historial.json.
 
-    La carpeta %APPDATA%\ESTICC\ se crea automáticamente si no existe.
+    La carpeta %APPDATA%/ESTICC/ se crea automáticamente si no existe.
     parents=True: crea también las carpetas intermedias si faltan (Path.mkdir equivale a mkdir -p).
     exist_ok=True: no lanza error si la carpeta ya existe.
     """
