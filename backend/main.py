@@ -103,4 +103,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()  # Punto de entrada: Python ejecuta main() solo cuando se llama directamente
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass  # Terminación normal cuando Tauri cierra el proceso sidecar
