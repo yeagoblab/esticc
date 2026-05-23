@@ -1,10 +1,11 @@
 @echo off
+chcp 65001 >nul
 setlocal enabledelayedexpansion
-title ESTICC — Configuracion
+title ESTICC - Configuracion
 
 echo.
 echo ============================================================
-echo   ESTICC — Panel de Seguridad Local  ^|  Configuracion
+echo   ESTICC - Panel de Seguridad Local  |  Configuracion
 echo ============================================================
 echo.
 
@@ -71,15 +72,14 @@ echo.
 echo [4/4] Verificando Tauri CLI ...
 cargo tauri --version >nul 2>&1
 if errorlevel 1 (
-    echo      Tauri CLI no encontrado. Instalando (puede tardar varios minutos)...
+    echo      Tauri CLI no encontrado. Instalando ^(puede tardar varios minutos^)...
     cargo install tauri-cli --version "^1.0"
     if errorlevel 1 (
         echo [ERROR] No se pudo instalar Tauri CLI.
         pause & exit /b 1
     )
 )
-for /f "tokens=*" %%v in ('cargo tauri --version 2^>^&1') do set TAURI_VER=%%v
-echo [OK] %TAURI_VER% encontrado.
+echo [OK] Tauri CLI listo.
 
 :: ─── Fin ─────────────────────────────────────────────────────
 echo.
@@ -87,7 +87,8 @@ echo ============================================================
 echo   Configuracion completada con exito.
 echo.
 echo   Para iniciar ESTICC en modo desarrollo, ejecuta:
-echo      run.bat
+echo      .\run.bat         ^(en PowerShell^)
+echo      run.bat           ^(en CMD^)
 echo.
 echo   Nota: la primera compilacion de Rust puede tardar
 echo   varios minutos. Las siguientes seran mucho mas rapidas.
