@@ -8,10 +8,14 @@
   <link rel="stylesheet" href="css/enciclopedia.css" />
   <link rel="stylesheet" href="css/radar.css" />
   <link rel="stylesheet" href="css/reportes.css" />
+  <link rel="stylesheet" href="css/historial.css" />
   <style>
     :root {
       --bg: #0d1117;
       --surface: #161b22;
+      --card: #161b22;
+      --header: #0d1117;
+      --hover: rgba(48,54,61,0.45);
       --border: #30363d;
       --accent: #58a6ff;
       --ok: #3fb950;
@@ -336,6 +340,7 @@
   <button data-panel="enciclopedia">📖 Enciclopedia</button>
   <button data-panel="radar">📡 Radar OSINT</button>
   <button data-panel="reportes">📋 Informe</button>
+  <button data-panel="historial">📅 Historial</button>
 </nav>
 
 <main>
@@ -425,6 +430,46 @@
     </div>
   </div>
 
+  <!-- Panel: Historial de análisis -->
+  <div class="panel" id="panel-historial">
+    <div class="card">
+      <div class="hist-toolbar">
+        <h2>Historial de Análisis</h2>
+        <button class="scan-btn" id="btn-cargar-historial">Actualizar</button>
+      </div>
+      <div class="hist-leyenda">
+        <div class="hist-leyenda-item"><div class="hist-dot hist-dot-esticc"></div> Escaneo ESTICC</div>
+        <div class="hist-leyenda-item"><div class="hist-dot hist-dot-defender"></div> Análisis Defender</div>
+        <div class="hist-leyenda-item"><div class="hist-dot hist-dot-amenaza"></div> Amenaza detectada</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hist-nav">
+        <button id="hist-prev-mes">&#8249;</button>
+        <span class="hist-nav-mes" id="hist-nav-mes">—</span>
+        <button id="hist-next-mes">&#8250;</button>
+      </div>
+      <div class="hist-calendar" style="margin-top:12px;">
+        <div class="hist-cal-header">
+          <span>Lun</span><span>Mar</span><span>Mié</span>
+          <span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
+        </div>
+        <div class="hist-cal-grid" id="hist-cal-grid">
+          <p style="grid-column:1/-1;padding:20px;color:var(--text-dim);text-align:center;">
+            Pulsa "Actualizar" para cargar el historial.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="hist-detalle card" id="hist-detalle">
+      <div class="hist-detalle-vacio">Haz clic en un día con actividad para ver los detalles.</div>
+    </div>
+
+    <div class="hist-resumen" id="hist-resumen"></div>
+  </div>
+
   <!-- Panel: Enciclopedia -->
   <div class="panel" id="panel-enciclopedia">
     <div class="card">
@@ -499,5 +544,6 @@
 <script src="js/auditoria.js"></script>
 <script src="js/radar.js"></script>
 <script src="js/reportes.js"></script>
+<script src="js/historial.js"></script>
 </body>
 </html>

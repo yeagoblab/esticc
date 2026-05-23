@@ -38,6 +38,23 @@ Cada escenario incluye una tarjeta educativa con explicación, pasos de respuest
 | 7 | 4 conexiones SMB + MS17-010 sin parchear | Gusano de Red (EternalBlue) |
 | 8 | Beacon C2 powershell + dropper .vbs | Botnet zombie (Emotet) |
 
+### 📋 Informe de Seguridad
+Ejecuta los 5 escáneres de auditoría en una sola operación, calcula una puntuación de riesgo global (0–100) y genera un informe HTML completo exportable a PDF:
+- Nivel de riesgo: **Bajo / Medio / Alto / Crítico**
+- Hallazgos individuales con nivel de severidad y categoría
+- Resumen por módulo con métricas clave
+- Recomendaciones de remediación personalizadas según los hallazgos detectados
+- Exportación a PDF mediante `window.print()` sin dependencias externas
+
+### 📅 Historial de Análisis
+Calendario interactivo que combina los datos de **Windows Defender** con los escaneos propios de ESTICC:
+- Vista mensual con navegación de mes en mes
+- Puntos de colores por tipo de evento: azul (ESTICC), verde (Defender OK), rojo (amenaza detectada)
+- Clic en cualquier día para ver la timeline detallada de eventos con hora y fuente
+- Tarjetas de estado: último análisis rápido y completo de Defender, protección en tiempo real, amenazas recientes
+- Historial persistido en `%APPDATA%\ESTICC\historial.json` (últimas 100 entradas)
+- Los informes completos se registran automáticamente en el historial al generarse
+
 ### 📖 Enciclopedia de Malware
 Base de conocimiento con 10 categorías de amenazas, búsqueda en tiempo real y ficha técnica completa con:
 - Técnicas MITRE ATT&CK
@@ -98,6 +115,8 @@ run.bat
 
 ```
 esticc/
+├── setup.bat                          # Configura entorno virtual + Tauri CLI (una sola vez)
+├── run.bat                            # Inicia la aplicación en modo desarrollo
 ├── backend/
 │   ├── main.py                        # Router IPC (stdin/stdout JSON)
 │   ├── requirements.txt               # psutil, feedparser
@@ -107,20 +126,29 @@ esticc/
 │   │   ├── analisis_autoinicio.py     # Registro Run + tareas
 │   │   ├── estado_defensas.py         # Firewall, Defender, BitLocker
 │   │   └── verificador_parches.py     # Windows Update pendientes
-│   └── modulo_03_radar/
-│       ├── lector_rss.py              # Fetch concurrente de 6 feeds RSS
-│       └── correlacion.py             # Correlación puerto/CVE con estado local
+│   ├── modulo_03_radar/
+│   │   ├── lector_rss.py              # Fetch concurrente de 6 feeds RSS
+│   │   └── correlacion.py             # Correlación puerto/CVE con estado local
+│   ├── modulo_04_reportes/
+│   │   └── generador.py               # 5 escáneres + puntuación de riesgo 0-100
+│   └── modulo_05_historial/
+│       ├── historial_defender.py      # Consulta eventos del log de Windows Defender
+│       └── historial_esticc.py        # Persiste historial propio en %APPDATA%\ESTICC\
 ├── frontend/
 │   ├── index.html                     # SPA única con todos los paneles
 │   ├── css/
 │   │   ├── simulador.css
 │   │   ├── enciclopedia.css
-│   │   └── radar.css
+│   │   ├── radar.css
+│   │   ├── reportes.css               # Estilos del informe + @media print
+│   │   └── historial.css              # Calendario mensual + timeline de eventos
 │   └── js/
 │       ├── auditoria.js               # Renderers + botones de escaneo
 │       ├── simulador.js               # Escenarios de demo + interceptor
 │       ├── enciclopedia.js            # Base de datos + buscador + modal
-│       └── radar.js                   # Fetch OSINT + renderizado dual
+│       ├── radar.js                   # Fetch OSINT + renderizado dual
+│       ├── reportes.js                # Generación y renderizado del informe HTML
+│       └── historial.js               # Calendario + window.HISTORIAL.registrar()
 └── src-tauri/
     ├── src/main.rs                    # Sidecar spawn + IPC Rust↔Python
     ├── Cargo.toml
@@ -154,6 +182,10 @@ Acciones disponibles:
 | `scan_patches` | auditoria | Actualizaciones pendientes |
 | `radar_fetch` | radar | Descarga las últimas noticias RSS |
 | `radar_correlate` | radar | Cruza noticias con el estado local |
+| `generate_report` | reportes | 5 escáneres + puntuación de riesgo |
+| `historial_defender` | historial | Estado y eventos del log de Defender |
+| `historial_esticc_get` | historial | Lee el historial persistido de ESTICC |
+| `historial_esticc_guardar` | historial | Añade una entrada al historial |
 
 ---
 

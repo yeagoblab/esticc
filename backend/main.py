@@ -30,6 +30,9 @@ from modulo_03_radar import (
 # Importamos el generador de informes consolidados
 from modulo_04_reportes import generador  # Ejecuta los 5 escáneres + puntuación de riesgo
 
+# Importamos los módulos del historial de análisis
+from modulo_05_historial import historial_defender, historial_esticc
+
 # Diccionario acción → función: permite despachar sin if/elif explícitos
 # Las acciones simples no necesitan datos extra del request
 ACCIONES_SIMPLES: dict[str, callable] = {
@@ -39,11 +42,13 @@ ACCIONES_SIMPLES: dict[str, callable] = {
     "scan_defenses":  estado_defensas.run,    # Estado de las defensas
     "scan_patches":   verificador_parches.run,# Parches pendientes
     "radar_fetch":    lector_rss.run,         # Descarga de noticias RSS
-    "generate_report": generador.run,        # Informe consolidado (5 escáneres + riesgo)
+    "generate_report":      generador.run,          # Informe consolidado (5 escáneres + riesgo)
+    "historial_defender":   historial_defender.run, # Historial de análisis de Defender
+    "historial_esticc_get": historial_esticc.get,   # Historial de escaneos ESTICC (lectura)
 }
 
 # Conjunto de todas las acciones válidas, incluyendo las que tienen lógica especial
-ACCIONES_CONOCIDAS: set[str] = set(ACCIONES_SIMPLES) | {"radar_correlate"}
+ACCIONES_CONOCIDAS: set[str] = set(ACCIONES_SIMPLES) | {"radar_correlate", "historial_esticc_guardar"}
 
 
 def enviar(mensaje: dict) -> None:
@@ -89,6 +94,9 @@ def main() -> None:
                 # que contiene: { "noticias": [...], "puertos": [...], "procesos": [...] }
                 context = req.get("context", {})  # Si no viene context, usar dict vacío
                 resultado = correlacion.run(context)
+            elif action == "historial_esticc_guardar":
+                entrada = req.get("entrada", {})
+                resultado = historial_esticc.guardar(entrada)
             else:
                 # El resto de acciones no necesitan datos extra → llamada directa sin args
                 resultado = ACCIONES_SIMPLES[action]()

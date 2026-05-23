@@ -129,6 +129,13 @@
       contenido.innerHTML = buildReportHTML(resultado.data);
       btnImprimir.style.display = 'inline-block';
 
+      // Guardar evento en el historial de análisis
+      window.HISTORIAL?.registrar('informe_completo', {
+        nivel:         resultado.data.riesgo?.nivel,
+        puntuacion:    resultado.data.riesgo?.puntos,
+        num_hallazgos: resultado.data.hallazgos?.length ?? 0,
+      });
+
     } catch (e) {
       intervalIds.forEach(clearTimeout);
       contenido.innerHTML = `
