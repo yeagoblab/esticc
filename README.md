@@ -200,6 +200,41 @@ Para obtener correlaciones precisas:
 
 ---
 
+## Datos persistentes: %APPDATA%\ESTICC\
+
+ESTICC guarda el historial de sus propios escaneos en la carpeta de datos de aplicación del usuario:
+
+```
+C:\Users\<NombreUsuario>\AppData\Roaming\ESTICC\
+└── historial.json     ← Historial de escaneos (últimas 100 entradas)
+```
+
+**¿Por qué %APPDATA%?**
+- No requiere permisos de administrador para escribir.
+- Sigue el estándar de Windows para datos de usuario por aplicación.
+- Los datos del usuario se conservan aunque se reinstale ESTICC.
+- Compatible con entornos corporativos donde `Program Files\` es de solo lectura.
+
+**Formato de historial.json:**
+
+```json
+[
+  {
+    "timestamp":     "2026-05-23T10:30:00+00:00",
+    "tipo":          "informe_completo",
+    "nivel":         "medio",
+    "puntuacion":    42,
+    "num_hallazgos": 3,
+    "resumen":       null,
+    "fuente":        "esticc"
+  }
+]
+```
+
+La lista se limita a las **100 entradas más recientes** (política FIFO). Para eliminar el historial basta con borrar el archivo manualmente.
+
+---
+
 ## Notas de seguridad
 
 - ESTICC **solo realiza lectura pasiva** del sistema local. No modifica ningún archivo, configuración ni ajuste de red.
