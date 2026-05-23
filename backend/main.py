@@ -27,6 +27,9 @@ from modulo_03_radar import (
     correlacion, # Cruza noticias con el estado del sistema local
 )
 
+# Importamos el generador de informes consolidados
+from modulo_04_reportes import generador  # Ejecuta los 5 escáneres + puntuación de riesgo
+
 # Diccionario acción → función: permite despachar sin if/elif explícitos
 # Las acciones simples no necesitan datos extra del request
 ACCIONES_SIMPLES: dict[str, callable] = {
@@ -36,9 +39,10 @@ ACCIONES_SIMPLES: dict[str, callable] = {
     "scan_defenses":  estado_defensas.run,    # Estado de las defensas
     "scan_patches":   verificador_parches.run,# Parches pendientes
     "radar_fetch":    lector_rss.run,         # Descarga de noticias RSS
+    "generate_report": generador.run,        # Informe consolidado (5 escáneres + riesgo)
 }
 
-# Conjunto de todas las acciones válidas, incluyendo la que tiene lógica especial
+# Conjunto de todas las acciones válidas, incluyendo las que tienen lógica especial
 ACCIONES_CONOCIDAS: set[str] = set(ACCIONES_SIMPLES) | {"radar_correlate"}
 
 

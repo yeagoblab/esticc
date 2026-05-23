@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="css/simulador.css" />
   <link rel="stylesheet" href="css/enciclopedia.css" />
   <link rel="stylesheet" href="css/radar.css" />
+  <link rel="stylesheet" href="css/reportes.css" />
   <style>
     :root {
       --bg: #0d1117;
@@ -334,6 +335,7 @@
   <button data-panel="parches">Parches</button>
   <button data-panel="enciclopedia">📖 Enciclopedia</button>
   <button data-panel="radar">📡 Radar OSINT</button>
+  <button data-panel="reportes">📋 Informe</button>
 </nav>
 
 <main>
@@ -392,6 +394,34 @@
         <span class="radar-meta">Monitoriza 6 fuentes · NIST NVD · Bleeping Computer · Krebs · SANS · The Hacker News · Reddit r/netsec</span>
       </div>
       <div id="resultado-radar"></div>
+    </div>
+  </div>
+
+  <!-- Panel: Informe de seguridad -->
+  <div class="panel" id="panel-reportes">
+    <div class="card">
+      <h2>Informe de Seguridad del Sistema</h2>
+      <p style="font-size:13px;color:var(--text-dim);margin:8px 0 16px;">
+        Ejecuta los 5 escáneres, calcula la puntuación de riesgo global y genera un informe
+        completo exportable a PDF. El análisis puede tardar hasta 30 segundos.
+      </p>
+      <div class="rep-toolbar">
+        <button class="scan-btn" id="btn-generar-informe">Generar informe completo</button>
+        <button class="scan-btn" id="btn-imprimir-informe" style="display:none;background:var(--surface);color:var(--accent);border:1px solid var(--accent);">
+          🖨️ Imprimir / Guardar PDF
+        </button>
+      </div>
+      <div class="rep-progress" id="reporte-progress">
+        Ejecutando escáneres de auditoría…
+        <div class="rep-progress-pasos">
+          <span class="rep-paso" id="paso-0">🛡️ Defensas</span>
+          <span class="rep-paso" id="paso-1">🌐 Puertos</span>
+          <span class="rep-paso" id="paso-2">⚙️ Procesos</span>
+          <span class="rep-paso" id="paso-3">🚀 Autoinicio</span>
+          <span class="rep-paso" id="paso-4">🔧 Parches</span>
+        </div>
+      </div>
+      <div id="reporte-contenido"></div>
     </div>
   </div>
 
@@ -468,5 +498,6 @@
 <script src="js/enciclopedia.js"></script>
 <script src="js/auditoria.js"></script>
 <script src="js/radar.js"></script>
+<script src="js/reportes.js"></script>
 </body>
 </html>
