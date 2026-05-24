@@ -97,7 +97,7 @@ Toggle global que cambia la presentación de todos los paneles:
 
 ```bat
 :: 1. Clonar el repositorio
-git clone https://github.com/yeagob-commits/esticc.git
+git clone https://github.com/yeagoblab/esticc.git
 cd esticc
 
 :: 2. Configurar entorno (una sola vez)
