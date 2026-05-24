@@ -280,6 +280,9 @@ La lista se limita a las **100 entradas más recientes** (política FIFO). Para 
 
 ## Changelog
 
+### [v0.3.2](https://github.com/yeagoblab/esticc/releases/tag/v0.3.2) — 2026-05-24
+- **chore:** recompilación del portable con los metadatos de versión corregidos. El binario ahora reporta `0.3.2` internamente.
+
 ### [v0.3.1](https://github.com/yeagoblab/esticc/releases/tag/v0.3.1) — 2026-05-24
 - **chore:** versión interna de `tauri.conf.json` y `Cargo.toml` actualizada a `0.3.1` para que coincida con el tag de la release.
 
