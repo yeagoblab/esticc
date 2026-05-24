@@ -1,6 +1,6 @@
 # ESTICC — Panel de Seguridad Local
 
-[![Release](https://img.shields.io/badge/release-v0.2.0-1f6feb?style=flat-square&logo=github)](https://github.com/yeagoblab/esticc/releases/tag/v0.2.0)
+[![Release](https://img.shields.io/github/v/release/yeagoblab/esticc?style=flat-square&logo=github&color=1f6feb)](https://github.com/yeagoblab/esticc/releases/latest)
 [![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D4?style=flat-square&logo=windows)](https://github.com/yeagoblab/esticc/releases/latest)
 [![Licencia](https://img.shields.io/badge/licencia-MIT-3fb950?style=flat-square)](License)
 
