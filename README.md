@@ -84,7 +84,34 @@ Toggle global que cambia la presentación de todos los paneles:
 
 ---
 
-## Requisitos previos
+## Instalación para usuarios
+
+> **Forma recomendada** — no requiere Python, Rust ni ningún conocimiento técnico.
+
+### 1. Descargar el instalador
+
+Ve a la página de [Releases](https://github.com/yeagoblab/esticc/releases/latest) y descarga **`ESTICC_Installer.exe`**.
+
+### 2. Ejecutar el instalador
+
+Haz doble clic en `ESTICC_Installer.exe`. El instalador:
+
+1. Comprueba automáticamente los requisitos del sistema (Windows 10+, RAM, disco, Internet).
+2. Descarga la última versión de ESTICC desde GitHub.
+3. Instala los archivos en `%LOCALAPPDATA%\ESTICC\` (sin permisos de administrador).
+4. Crea accesos directos en el Escritorio y en el Menú de Inicio.
+
+Si algo falla, aparecerá un mensaje de error con instrucciones claras sobre cómo resolverlo.
+
+### Versión portable (opcional)
+
+Si prefieres no usar el instalador, descarga **`ESTICC_portable_win64.zip`** desde la misma página de Releases, descomprímelo en cualquier carpeta y ejecuta `ESTICC.exe`.
+
+> **Requisito:** [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) instalado en el sistema (incluido por defecto en Windows 11 y en Windows 10 con Edge actualizado).
+
+---
+
+## Requisitos previos (solo para desarrolladores)
 
 - **Windows 10/11** (64-bit)
 - **Python 3.8+** — [python.org](https://www.python.org/downloads/) *(marcar "Add Python to PATH")*
@@ -93,7 +120,7 @@ Toggle global que cambia la presentación de todos los paneles:
 
 ---
 
-## Instalación
+## Instalación en modo desarrollo
 
 ```bat
 :: 1. Clonar el repositorio
