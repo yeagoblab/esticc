@@ -281,7 +281,7 @@ La lista se limita a las **100 entradas más recientes** (política FIFO). Para 
 ## Changelog
 
 ### [v0.3.1](https://github.com/yeagoblab/esticc/releases/tag/v0.3.1) — 2026-05-24
-- **chore:** versión interna de `tauri.conf.json` actualizada a `0.3.0` para que coincida con el tag de la release.
+- **chore:** versión interna de `tauri.conf.json` y `Cargo.toml` actualizada a `0.3.1` para que coincida con el tag de la release.
 
 ### [v0.3.0](https://github.com/yeagoblab/esticc/releases/tag/v0.3.0) — 2026-05-24
 - **fix:** suprimida la ventana de consola (terminal negra) que aparecía al iniciar ESTICC. El sidecar `backend.exe` ahora se lanza con el flag `CREATE_NO_WINDOW` de la API Win32.
