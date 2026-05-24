@@ -278,6 +278,21 @@ La lista se limita a las **100 entradas más recientes** (política FIFO). Para 
 
 ---
 
+## Changelog
+
+### [v0.3.0](https://github.com/yeagoblab/esticc/releases/tag/v0.3.0) — 2026-05-24
+- **fix:** suprimida la ventana de consola (terminal negra) que aparecía al iniciar ESTICC. El sidecar `backend.exe` ahora se lanza con el flag `CREATE_NO_WINDOW` de la API Win32.
+
+### [v0.2.0](https://github.com/yeagoblab/esticc/releases/tag/v0.2.0) — 2026-05-24
+- **feat:** instalador gráfico `ESTICC_Installer.exe` para usuarios finales. Comprueba requisitos del sistema, descarga ESTICC desde GitHub y crea accesos directos sin necesidad de permisos de administrador.
+- **feat:** versión portable `ESTICC_portable_win64.zip` lista para descomprimir y ejecutar.
+- **docs:** instrucciones de instalación para usuarios finales separadas de las de desarrollo.
+
+### [v0.1.0](https://github.com/yeagoblab/esticc/releases/tag/v0.1.0) — 2026-05-24
+- Primera versión pública. Incluye auditoría local, radar OSINT, simulador de amenazas, informe de seguridad, historial de análisis y enciclopedia de malware.
+
+---
+
 ## Licencia
 
 Este proyecto está bajo la Licencia MIT. Para más detalles, consulta el archivo [License](License) en la raíz del repositorio.
