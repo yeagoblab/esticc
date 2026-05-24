@@ -9,7 +9,7 @@
   },
   "package": {
     "productName": "ESTICC",
-    "version": "0.1.0"
+    "version": "0.3.0"
   },
   "tauri": {
     "allowlist": {
@@ -25,7 +25,8 @@
         "icons/icon.png",
         "icons/icon.ico"
       ],
-      "externalBin": []
+      "externalBin": [],
+      "resources": ["../backend/dist/backend.exe"]
     },
     "security": {
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self';"
