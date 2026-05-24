@@ -4,6 +4,8 @@
 
 Pensado para estudiantes, PYMEs y usuarios individuales que quieran entender el estado de seguridad de su equipo sin necesidad de conocimientos técnicos previos.
 
+![Panel de Defensas de ESTICC](docs/screenshot.png)
+
 ---
 
 ## Características
