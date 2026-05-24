@@ -1,6 +1,6 @@
 [package]
 name = "esticc"
-version = "0.3.1"
+version = "0.3.2"
 description = "ESTICC - Panel de Seguridad Local"
 authors = ["yeagoblab"]
 edition = "2021"
