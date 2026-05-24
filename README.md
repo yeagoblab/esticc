@@ -94,7 +94,9 @@ Toggle global que cambia la presentación de todos los paneles:
 
 ### 1. Descargar el instalador
 
-Ve a la página de [Releases](https://github.com/yeagoblab/esticc/releases/latest) y descarga **`ESTICC_Installer.exe`**.
+**[⬇ Descargar ESTICC_Installer.exe](https://github.com/yeagoblab/esticc/releases/latest/download/ESTICC_Installer.exe)**
+
+También puedes ir a la [página de Releases](https://github.com/yeagoblab/esticc/releases/latest) para ver todas las descargas disponibles.
 
 ### 2. Ejecutar el instalador
 
