@@ -1,5 +1,9 @@
 # ESTICC — Panel de Seguridad Local
 
+[![Release](https://img.shields.io/badge/release-v0.2.0-1f6feb?style=flat-square&logo=github)](https://github.com/yeagoblab/esticc/releases/tag/v0.2.0)
+[![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D4?style=flat-square&logo=windows)](https://github.com/yeagoblab/esticc/releases/latest)
+[![Licencia](https://img.shields.io/badge/licencia-MIT-3fb950?style=flat-square)](License)
+
 **ESTICC** (Entorno de Seguridad TIC) es un panel de seguridad educativo de código abierto para Windows. Combina auditoría local del sistema, inteligencia OSINT en tiempo real, simulación de amenazas y enciclopedia de malware en una sola interfaz de escritorio.
 
 Pensado para estudiantes, PYMEs y usuarios individuales que quieran entender el estado de seguridad de su equipo sin necesidad de conocimientos técnicos previos.
