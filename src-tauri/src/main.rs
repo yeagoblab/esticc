@@ -3,6 +3,7 @@
 
 use std::collections::HashMap;  // HashMap: tabla hash para mapear IDs de petición → canales de respuesta
 use std::io::{BufRead, BufReader, Write};  // BufRead: lectura línea a línea | Write: escribir al stdin del sidecar
+use std::os::windows::process::CommandExt;  // Extiende Command con creation_flags() para usar flags de la API Win32
 use std::process::{Command, Stdio};  // Command: lanzar subprocesos | Stdio: configurar pipes stdin/stdout
 use std::sync::atomic::{AtomicU64, Ordering};  // AtomicU64: contador thread-safe para IDs únicos
 use std::sync::{Arc, Mutex};  // Arc: referencia contada para compartir datos entre hilos | Mutex: exclusión mutua
@@ -83,35 +84,50 @@ async fn audit(
     // El ? propaga el Err hacia arriba; si Ok(inner), inner puede ser Ok(Value) o Err(String)
 }
 
-// ── Ruta del script Python del sidecar ────────────────────────────────────────
+// ── Lanzador del sidecar (dev: Python+script / release: backend.exe) ──────────
 
-fn project_root() -> std::path::PathBuf {
-    let mut p = std::env::current_exe().expect("No se puede obtener la ruta del ejecutable.");
-    p.pop();  // Eliminar "esticc.exe"  → .../ESTICC/src-tauri/target/debug/
-    p.pop();  // Eliminar "debug/"      → .../ESTICC/src-tauri/target/
-    p.pop();  // Eliminar "target/"     → .../ESTICC/src-tauri/
-    p.pop();  // Eliminar "src-tauri/"  → .../ESTICC/
-    p
-}
+fn spawn_sidecar() -> std::io::Result<std::process::Child> {
+    let exe = std::env::current_exe().expect("No se puede obtener la ruta del ejecutable.");
+    let exe_dir = exe.parent().expect("El ejecutable no tiene directorio padre.");
 
-fn python_script_path() -> std::path::PathBuf {
-    project_root().join("backend").join("main.py")
-}
-
-// Devuelve el ejecutable Python del venv si existe; si no, cae al Python del sistema.
-fn python_executable() -> std::path::PathBuf {
-    let venv_python = project_root()
-        .join("backend")
-        .join(".venv")
-        .join("Scripts")
-        .join("python.exe");
-
-    if venv_python.exists() {
-        eprintln!("[setup] Usando Python del entorno virtual: {:?}", venv_python);
-        venv_python
+    if cfg!(debug_assertions) {
+        // En debug: el exe está en target/debug/ → subir 3 niveles para llegar a la raíz del proyecto
+        let project_root = exe_dir
+            .ancestors()
+            .nth(3)
+            .expect("No se puede navegar hasta la raíz del proyecto.")
+            .to_path_buf();
+        let backend_dir = project_root.join("backend");
+        let script = backend_dir.join("main.py");
+        let venv_python = backend_dir.join(".venv").join("Scripts").join("python.exe");
+        let python: std::path::PathBuf = if venv_python.exists() {
+            eprintln!("[setup] Usando Python del entorno virtual: {:?}", venv_python);
+            venv_python
+        } else {
+            eprintln!("[setup] Entorno virtual no encontrado, usando Python del sistema.");
+            std::path::PathBuf::from("python")
+        };
+        eprintln!("[setup] Modo debug — lanzando: {:?} {:?}", python, script);
+        Command::new(&python)
+            .arg(&script)
+            .current_dir(&backend_dir)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit())
+            .spawn()
     } else {
-        eprintln!("[setup] Entorno virtual no encontrado, usando Python del sistema.");
-        std::path::PathBuf::from("python")
+        // En release: backend.exe debe estar junto a ESTICC.exe (portable o instalado)
+        let backend_exe = exe_dir.join("backend.exe");
+        eprintln!("[setup] Modo release — lanzando: {:?}", backend_exe);
+        // CREATE_NO_WINDOW (0x08000000): impide que Windows abra una ventana de consola
+        // para el proceso hijo, independientemente de cómo fue compilado backend.exe.
+        // stderr → null: descarta la salida de error del sidecar en producción.
+        Command::new(&backend_exe)
+            .creation_flags(0x08000000)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
     }
 }
 
@@ -187,22 +203,8 @@ fn main() {
             // El mapa de peticiones pendientes se comparte entre el comando audit y el lector de stdout
             let pending: PendingMap = Arc::new(Mutex::new(HashMap::new()));
 
-            // Calcular la ruta del sidecar Python en tiempo de ejecución (no hardcodeada)
-            let script = python_script_path();
-            eprintln!("[setup] Lanzando sidecar: python {:?}", script);
-
-            // El directorio de trabajo del sidecar debe ser "backend/" para que Python
-            // pueda importar "modulo_02_auditoria" y "modulo_03_radar" como paquetes
-            let backend_dir = script.parent().expect("backend/ sin parent");
-
-            // Lanzar el proceso Python con pipes para stdin y stdout (protocolo IPC)
-            let mut child = Command::new(python_executable())
-                .arg(&script)                    // Ruta al script main.py
-                .current_dir(backend_dir)         // Directorio de trabajo = backend/ (necesario para imports)
-                .stdin(Stdio::piped())            // stdin del hijo conectado a un pipe (Rust escribe aquí)
-                .stdout(Stdio::piped())           // stdout del hijo conectado a un pipe (Rust lee aquí)
-                .stderr(Stdio::inherit())         // stderr del hijo va directamente a la consola de dev
-                .spawn()?;                        // Lanzar el proceso; ? propaga error si Python no está instalado
+            // Lanzar el sidecar (Python en dev, backend.exe en release)
+            let mut child = spawn_sidecar()?;
 
             // Extraer los handles de los pipes antes de que `child` se mueva
             let stdout = child.stdout.take().expect("stdout no disponible");
