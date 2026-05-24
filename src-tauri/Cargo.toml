@@ -2,7 +2,7 @@
 name = "esticc"
 version = "0.1.0"
 description = "ESTICC - Panel de Seguridad Local"
-authors = ["yeagoblab"]
+authors = ["yeagob-commits"]
 edition = "2021"
 
 [build-dependencies]

@@ -333,7 +333,7 @@
     return `
       <div class="rep-footer">
         Generado por ESTICC v0.1.0 &nbsp;·&nbsp; ${esc(fecha)} &nbsp;·&nbsp;
-        github.com/yeagoblab/esticc &nbsp;·&nbsp; MIT License
+        github.com/yeagob-commits/esticc &nbsp;·&nbsp; MIT License
       </div>`;
   }
 
