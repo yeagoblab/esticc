@@ -96,8 +96,8 @@
   text-align: center;
   padding: 8px 0;
   font-size: 11px;
-  font-weight: 600;
-  color: var(--text-dim);
+  font-weight: 700;
+  color: var(--text);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -135,12 +135,19 @@
 }
 .hist-cal-day.con-eventos {
   cursor: pointer;
+  border-radius: 0;
 }
+
+.hist-cal-day.con-eventos .hist-dia-num {
+  color: var(--accent);
+}
+
 .hist-cal-day.con-eventos:hover {
-  background: var(--hover);
+  background: rgba(88,166,255,0.06);
 }
+
 .hist-cal-day.seleccionado {
-  background: var(--hover);
+  background: rgba(88,166,255,0.1);
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
@@ -148,7 +155,7 @@
 .hist-dia-num {
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-dim);
+  color: var(--text);
   margin-bottom: 4px;
 }
 .hist-cal-day.hoy .hist-dia-num {

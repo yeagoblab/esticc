@@ -513,8 +513,14 @@
       ? new Date(ts).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
       : 'Sin datos'; // Fallback si Defender no ha ejecutado ningún análisis o no está disponible
 
-    const diasRapido   = estado.dias_desde_rapido   ?? '—'; // Días desde el último análisis rápido
-    const diasCompleto = estado.dias_desde_completo ?? '—'; // Días desde el último análisis completo
+    // Clamp y validación para evitar desbordamiento o valores incoherentes
+    const _clampDias = v => {
+      const n = parseInt(v);
+      if (isNaN(n) || n < 0 || n > 9999) return '—';
+      return n;
+    };
+    const diasRapido   = _clampDias(estado.dias_desde_rapido);
+    const diasCompleto = _clampDias(estado.dias_desde_completo);
 
     // Clases CSS para colorear el estado (verde=ok, rojo=inactivo)
     const claseActivo = estado.defender_activo        ? 'hist-defender-ok' : 'hist-defender-danger';
@@ -526,12 +532,12 @@
       <div class="hist-stat-card">
         <div class="hist-stat-label">Último análisis rápido</div>
         <div class="hist-stat-valor" style="font-size:15px">${esc(fmtFecha(estado.ultimo_analisis_rapido))}</div>
-        <div class="hist-stat-sub">Hace ${esc(String(diasRapido))} día${diasRapido !== 1 ? 's' : ''}</div>
+        <div class="hist-stat-sub">${diasRapido === '—' ? 'Sin datos' : `Hace ${diasRapido} día${diasRapido !== 1 ? 's' : ''}`}</div>
       </div>
       <div class="hist-stat-card">
         <div class="hist-stat-label">Último análisis completo</div>
         <div class="hist-stat-valor" style="font-size:15px">${esc(fmtFecha(estado.ultimo_analisis_completo))}</div>
-        <div class="hist-stat-sub">Hace ${esc(String(diasCompleto))} día${diasCompleto !== 1 ? 's' : ''}</div>
+        <div class="hist-stat-sub">${diasCompleto === '—' ? 'Sin datos' : `Hace ${diasCompleto} día${diasCompleto !== 1 ? 's' : ''}`}</div>
       </div>
       <div class="hist-stat-card">
         <div class="hist-stat-label">Windows Defender</div>

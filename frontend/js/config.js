@@ -1,0 +1,253 @@
+/**
+ * config.js — Gestión de configuración de ESTICC.
+ *
+ * Responsabilidades:
+ *  · Cargar la configuración guardada en localStorage al iniciar.
+ *  · Aplicar el tema visual (oscuro/claro), el rol de usuario y el idioma al <body>.
+ *  · Sincronizar el formulario del panel de Configuración con el estado guardado.
+ *  · Guardar los cambios del formulario en localStorage cuando el usuario los confirma.
+ *  · Exponer window.ESTICC_CONFIG para que otros módulos puedan leer/escribir config.
+ */
+
+(function () {
+  'use strict';  // Activa el modo estricto: prohíbe variables sin declarar y otras malas prácticas
+
+  // ── Constantes ───────────────────────────────────────────────────────────────
+
+  const STORAGE_KEY = 'esticc_config';  // Clave única en localStorage donde se guarda el JSON de config
+
+  // Valores por defecto usados cuando el usuario abre la app por primera vez o no hay config guardada
+  const DEFAULTS = {
+    rol:               'estudiante',   // Perfil de usuario inicial: el más básico y educativo
+    tema:              'oscuro',       // Tema visual por defecto: fondo oscuro (GitHub-style)
+    idioma:            'es',           // Idioma por defecto: español
+    historial_local:   true,           // Guardar historial de análisis en localStorage por defecto
+    ruta_exportacion:  '',             // Ruta de exportación de PDF vacía (el usuario la rellena)
+    tiempo_muestreo:   'balanceado',   // 3 segundos de muestreo al analizar (equilibrio velocidad/precisión)
+    autoscan_inicio:   false,          // No auto-escanear al abrir por defecto (requiere activación explícita)
+    recordatorio_dias: 7,              // Mostrar recordatorio si no se analiza en 7 días (una semana)
+  };
+
+  // ── Carga y guardado en localStorage ────────────────────────────────────────
+
+  /**
+   * cargarConfig() — Lee la configuración de localStorage y la fusiona con los DEFAULTS.
+   * Object.assign({}, DEFAULTS, guardado) garantiza que si se añaden nuevas claves en el
+   * futuro, los usuarios con config antigua las recibirán con su valor por defecto.
+   */
+  function cargarConfig() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);  // Intentar leer el JSON guardado
+      // Si hay datos guardados, fusionarlos sobre los DEFAULTS; si no, devolver solo DEFAULTS
+      return raw ? Object.assign({}, DEFAULTS, JSON.parse(raw)) : Object.assign({}, DEFAULTS);
+    } catch (_) {
+      // JSON.parse puede lanzar SyntaxError si el dato está corrupto; devolver DEFAULTS como fallback
+      return Object.assign({}, DEFAULTS);
+    }
+  }
+
+  /**
+   * guardarConfig(cfg) — Serializa el objeto de configuración a JSON y lo persiste.
+   * El try/catch protege contra el error de localStorage lleno (QuotaExceededError).
+   */
+  function guardarConfig(cfg) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));  // Serializar y guardar
+    } catch (_) {}  // Silenciar error de cuota: la app sigue funcionando con la config en memoria
+  }
+
+  // ── Aplicar configuración al DOM ─────────────────────────────────────────────
+
+  /**
+   * applyThema(tema) — Alterna el tema visual cambiando la clase CSS del <body>.
+   * body.tema-claro sobreescribe las variables CSS :root con colores de fondo claro.
+   * Si tema es 'oscuro', se elimina la clase y prevalecen los colores del :root original.
+   */
+  function applyThema(tema) {
+    document.body.classList.toggle('tema-claro', tema === 'claro');  // true → añade clase, false → la elimina
+  }
+
+  /**
+   * applyRol(rol) — Almacena el rol en un atributo data-* del body y activa efectos secundarios.
+   * data-rol permite a CSS futuro aplicar reglas específicas por rol (ej. data-rol="persona_mayor").
+   * El rol 'administrador' fuerza el modo avanzado automáticamente (sin que el usuario lo active).
+   * El rol 'persona_mayor' activa la clase rol-mayor que aumenta el tamaño de fuente global.
+   */
+  function applyRol(rol) {
+    document.body.dataset.rol = rol;  // Escribe data-rol="estudiante" (etc.) en el <body>
+    document.body.classList.toggle('rol-mayor', rol === 'persona_mayor');  // Tipografía aumentada para mayores
+
+    if (rol === 'administrador') {
+      document.body.classList.add('modo-avanzado');  // Mostrar vistas avanzadas (tablas, PID, etc.)
+      const cb = document.getElementById('modo-checkbox');  // Toggle del header
+      if (cb) { cb.checked = true; }  // Marcar visualmente el toggle como activo
+      const lbl = document.getElementById('modo-label');  // Etiqueta junto al toggle
+      // Usar t() si i18n ya está cargado (lo está, ya que config.js se carga después de i18n.js)
+      if (lbl) lbl.textContent = window.t ? t('botones.modo_avanzado') : 'Modo Avanzado';
+    }
+  }
+
+  /**
+   * applyIdioma(idioma) — Cambia el idioma activo de la UI y relanza las traducciones.
+   * window.ESTICC_LANG es leído por t() en i18n.js para saber qué diccionario usar.
+   * applyTranslations() recorre todos los elementos con data-i18n y actualiza su textContent.
+   */
+  function applyIdioma(idioma) {
+    window.ESTICC_LANG = idioma;  // Actualizar la variable global de idioma activo
+    if (typeof window.applyTranslations === 'function') window.applyTranslations();  // Retradución del DOM
+  }
+
+  /**
+   * applyAll(cfg) — Aplica todos los efectos de la configuración de una sola vez.
+   * Se llama tanto al cargar la app como al guardar cambios, para mantener sincronía.
+   */
+  function applyAll(cfg) {
+    applyThema(cfg.tema);    // 1. Primero el tema (cambia variables CSS globales)
+    applyRol(cfg.rol);       // 2. Luego el rol (puede forzar modo avanzado)
+    applyIdioma(cfg.idioma); // 3. Por último el idioma (retraduce el DOM con las clases ya aplicadas)
+  }
+
+  // ── Rellena el formulario con los valores actuales ───────────────────────────
+
+  /**
+   * poblarFormulario(cfg) — Sincroniza los controles del panel de Configuración con cfg.
+   * Se llama una vez al cargar el DOM para que el formulario refleje la config guardada.
+   * Cada grupo de botones tiene un data-valor que se compara con el valor actual de cfg.
+   */
+  function poblarFormulario(cfg) {
+
+    // ── Rol: marcar como activo el botón cuyo data-valor coincide con cfg.rol ────
+    document.querySelectorAll('#cfg-rol-group .cfg-btn-group-item').forEach(btn => {
+      btn.classList.toggle('activo', btn.dataset.valor === cfg.rol);  // Resaltar el rol guardado
+    });
+
+    // ── Tema: marcar el botón oscuro/claro según la preferencia guardada ─────────
+    document.querySelectorAll('#cfg-tema-group .cfg-btn-group-item').forEach(btn => {
+      btn.classList.toggle('activo', btn.dataset.valor === cfg.tema);
+    });
+
+    // ── Idioma: marcar ES o EN según la preferencia guardada ─────────────────────
+    document.querySelectorAll('#cfg-idioma-group .cfg-btn-group-item').forEach(btn => {
+      btn.classList.toggle('activo', btn.dataset.valor === cfg.idioma);
+    });
+
+    // ── Tiempo de muestreo: rápido / balanceado / preciso ────────────────────────
+    document.querySelectorAll('#cfg-muestreo-group .cfg-btn-group-item').forEach(btn => {
+      btn.classList.toggle('activo', btn.dataset.valor === cfg.tiempo_muestreo);
+    });
+
+    // ── Checkboxes y campos de texto ─────────────────────────────────────────────
+
+    const historialCb = document.getElementById('cfg-historial');
+    if (historialCb) historialCb.checked = cfg.historial_local;  // Guardar historial local
+
+    const autoscanCb = document.getElementById('cfg-autoscan');
+    if (autoscanCb) autoscanCb.checked = cfg.autoscan_inicio || false;  // Auto-escanear al abrir
+
+    const recSelect = document.getElementById('cfg-recordatorio');
+    // String() para que el <option value="7"> se compare correctamente con el número guardado
+    if (recSelect) recSelect.value = String(cfg.recordatorio_dias ?? 7);
+
+    const rutaInput = document.getElementById('cfg-ruta');
+    if (rutaInput) rutaInput.value = cfg.ruta_exportacion || '';  // Ruta de exportación PDF
+  }
+
+  // ── Leer formulario → objeto config ─────────────────────────────────────────
+
+  /**
+   * leerFormulario() — Extrae el estado actual del formulario y construye el objeto config.
+   * Cada getter busca el botón marcado como 'activo' en su grupo y lee su data-valor.
+   * Si el formulario no existe en el DOM (panel no cargado aún), usa el valor de DEFAULTS.
+   */
+  function leerFormulario() {
+
+    // Getters para cada grupo de botones: buscan el elemento con clase 'activo'
+    const getRol = () => {
+      const a = document.querySelector('#cfg-rol-group .cfg-btn-group-item.activo');
+      return a ? a.dataset.valor : DEFAULTS.rol;  // Fallback a 'estudiante' si ninguno está activo
+    };
+    const getTema = () => {
+      const a = document.querySelector('#cfg-tema-group .cfg-btn-group-item.activo');
+      return a ? a.dataset.valor : DEFAULTS.tema;  // Fallback a 'oscuro'
+    };
+    const getIdioma = () => {
+      const a = document.querySelector('#cfg-idioma-group .cfg-btn-group-item.activo');
+      return a ? a.dataset.valor : DEFAULTS.idioma;  // Fallback a 'es'
+    };
+    const getMuestreo = () => {
+      const a = document.querySelector('#cfg-muestreo-group .cfg-btn-group-item.activo');
+      return a ? a.dataset.valor : DEFAULTS.tiempo_muestreo;  // Fallback a 'balanceado'
+    };
+
+    // Referencias a los controles de formulario que no son botones de grupo
+    const historialCb = document.getElementById('cfg-historial');   // Toggle historial local
+    const autoscanCb  = document.getElementById('cfg-autoscan');    // Toggle auto-scan al iniciar
+    const recSelect   = document.getElementById('cfg-recordatorio'); // Select días de recordatorio
+    const rutaInput   = document.getElementById('cfg-ruta');         // Input ruta exportación
+
+    // Construir el objeto de configuración leyendo cada control; si el control no existe, usar DEFAULTS
+    return {
+      rol:               getRol(),
+      tema:              getTema(),
+      idioma:            getIdioma(),
+      historial_local:   historialCb ? historialCb.checked   : DEFAULTS.historial_local,
+      autoscan_inicio:   autoscanCb  ? autoscanCb.checked    : DEFAULTS.autoscan_inicio,
+      recordatorio_dias: recSelect   ? recSelect.value       : DEFAULTS.recordatorio_dias,  // String 'nunca'/'7'/etc.
+      ruta_exportacion:  rutaInput   ? rutaInput.value.trim(): DEFAULTS.ruta_exportacion,   // trim() elimina espacios
+      tiempo_muestreo:   getMuestreo(),
+    };
+  }
+
+  // ── Inicialización tras carga del DOM ────────────────────────────────────────
+
+  document.addEventListener('DOMContentLoaded', () => {
+
+    const cfg = cargarConfig();  // Leer config guardada (o DEFAULTS si es la primera vez)
+    applyAll(cfg);               // Aplicar tema, rol e idioma antes de renderizar nada visible
+
+    // Sincronizar el formulario del panel de Configuración con los valores cargados
+    poblarFormulario(cfg);
+
+    // ── Botones de grupo: respuesta inmediata al hacer clic ──────────────────────
+    // Todos los botones de grupo (rol, tema, idioma, muestreo) comparten la misma lógica:
+    // desmarcar todos los del grupo y marcar solo el pulsado, luego aplicar el efecto.
+    document.querySelectorAll('.cfg-btn-group-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const groupId = btn.closest('.cfg-btn-group')?.id;  // Obtener el id del contenedor del grupo
+        if (!groupId) return;  // Salida segura si el botón no está dentro de un grupo con id
+
+        // Quitar la clase 'activo' de todos los botones del mismo grupo
+        document.querySelectorAll(`#${groupId} .cfg-btn-group-item`).forEach(b => b.classList.remove('activo'));
+        btn.classList.add('activo');  // Marcar el botón pulsado como activo
+
+        // Aplicar el cambio en tiempo real (sin esperar a "Guardar cambios")
+        if (groupId === 'cfg-tema-group')   applyThema(btn.dataset.valor);    // Cambio de tema inmediato
+        if (groupId === 'cfg-idioma-group') applyIdioma(btn.dataset.valor);   // Retradución inmediata del DOM
+        if (groupId === 'cfg-rol-group')    applyRol(btn.dataset.valor);      // Cambio de rol inmediato
+      });
+    });
+
+    // ── Botón "Guardar cambios" ──────────────────────────────────────────────────
+    const formBtn = document.getElementById('cfg-guardar-btn');
+    if (formBtn) {
+      formBtn.addEventListener('click', () => {
+        const nueva = leerFormulario();  // Leer el estado actual de todos los controles
+        guardarConfig(nueva);            // Persistir en localStorage
+        applyAll(nueva);                 // Re-aplicar todo (especialmente rol, por si cambió)
+
+        // Mostrar el mensaje "Configuración guardada" y desvanecerlo tras 2.2 segundos
+        const feedback = document.getElementById('cfg-guardado-msg');
+        if (feedback) {
+          feedback.style.opacity = '1';                                       // Hacer visible
+          setTimeout(() => { feedback.style.opacity = '0'; }, 2200);          // Desvanecer
+        }
+      });
+    }
+  });
+
+  // ── API pública ──────────────────────────────────────────────────────────────
+  // Expuesto en window para que módulos externos (ej. background.js) puedan
+  // leer o escribir la configuración sin duplicar la lógica de STORAGE_KEY.
+  window.ESTICC_CONFIG = { cargar: cargarConfig, guardar: guardarConfig };
+
+})();  // IIFE: encapsula todo en un scope privado para no contaminar el namespace global

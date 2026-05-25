@@ -1,0 +1,221 @@
+/* ── Panel de Configuración ─────────────────────────────────────────────────── */
+
+.cfg-section {
+  margin-bottom: 20px;
+}
+
+.cfg-section-titulo {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  margin-bottom: 14px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── Fila de campo ────────────────────────────────────────────────────────── */
+
+.cfg-field {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.cfg-label {
+  font-size: 13px;
+  color: var(--text);
+  min-width: 180px;
+  flex-shrink: 0;
+}
+
+.cfg-label-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* ── Grupo de botones de selección ────────────────────────────────────────── */
+
+.cfg-btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cfg-btn-group-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.cfg-btn-group-item:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.cfg-btn-group-item.activo {
+  background: rgba(88,166,255,0.12);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── Grid de roles ────────────────────────────────────────────────────────── */
+
+.cfg-rol-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.cfg-rol-card {
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+  text-align: left;
+  color: var(--text);
+}
+
+.cfg-rol-card:hover {
+  border-color: var(--accent);
+  background: rgba(88,166,255,0.05);
+}
+
+.cfg-rol-card.activo {
+  border-color: var(--accent);
+  background: rgba(88,166,255,0.1);
+}
+
+.cfg-rol-nombre {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.cfg-rol-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+/* ── Toggle checkbox ──────────────────────────────────────────────────────── */
+
+.cfg-toggle-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.cfg-toggle-wrap input[type=checkbox] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* ── Input texto ──────────────────────────────────────────────────────────── */
+
+.cfg-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: 'Consolas', monospace;
+  width: 100%;
+  max-width: 360px;
+  transition: border-color 0.15s;
+}
+
+.cfg-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.cfg-input::placeholder {
+  color: var(--text-dim);
+}
+
+/* ── Nota informativa ─────────────────────────────────────────────────────── */
+
+.cfg-nota {
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 8px 12px;
+  background: rgba(88,166,255,0.05);
+  border-left: 3px solid rgba(88,166,255,0.3);
+  border-radius: 0 4px 4px 0;
+  line-height: 1.5;
+  margin-top: 6px;
+}
+
+/* ── Footer de guardado ───────────────────────────────────────────────────── */
+
+.cfg-footer {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+#cfg-guardado-msg {
+  font-size: 12px;
+  color: var(--ok);
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+
+/* ── Tema claro: variables de color ───────────────────────────────────────── */
+
+body.tema-claro {
+  --bg:       #f6f8fa;
+  --surface:  #ffffff;
+  --card:     #ffffff;
+  --header:   #f6f8fa;
+  --hover:    rgba(175,184,193,0.2);
+  --border:   #d0d7de;
+  --accent:   #0969da;
+  --ok:       #1a7f37;
+  --warn:     #9a6700;
+  --danger:   #cf222e;
+  --text:     #1f2328;
+  --text-dim: #656d76;
+}
+
+/* ── Rol persona mayor: tipografía aumentada ─────────────────────────────── */
+
+body.rol-mayor {
+  font-size: 16px;
+}
+
+body.rol-mayor .escudo-titulo,
+body.rol-mayor .escudo-estado {
+  font-size: 14px;
+}
+
+body.rol-mayor th,
+body.rol-mayor td {
+  font-size: 14px;
+  padding: 8px 10px;
+}

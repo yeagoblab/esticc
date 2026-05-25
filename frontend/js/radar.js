@@ -72,7 +72,7 @@
     // ── Fase de carga ────────────────────────────────────────────────────────────
     estado.cargando = true;  // Marcar como en progreso para evitar doble click
     const btn = document.getElementById('btn-radar');
-    if (btn) { btn.disabled = true; btn.textContent = 'Analizando...'; }  // Feedback visual inmediato
+    if (btn) { btn.disabled = true; btn.textContent = t('estados.analizando'); }  // Feedback visual inmediato
     document.getElementById('loading').style.display = 'block';  // Mostrar spinner global
 
     try {
@@ -116,7 +116,7 @@
     } finally {
       // Siempre restaurar la UI al estado normal, haya habido error o no
       estado.cargando = false;
-      if (btn) { btn.disabled = false; btn.textContent = 'Actualizar radar'; }
+      if (btn) { btn.disabled = false; btn.textContent = t('botones.actualizar_radar'); }
       document.getElementById('loading').style.display = 'none';
     }
   }
@@ -176,11 +176,10 @@
       </div>`;
 
     if (total === 0) {
-      // Sin alertas: mostrar mensaje tranquilizador
       return contadores + `
-        <div class="radar-sin-alertas">
-          <div class="radar-sin-alertas-icono">✅</div>
-          No hay amenazas activas relacionadas con tu sistema.
+        <div class="radar-sin-alertas-bloque">
+          <span class="radar-sin-alertas-badge">✅ Sin amenazas relevantes</span>
+          <span class="radar-sin-alertas-sub">Las ${estado.noticiasTotal} noticias analizadas no presentan coincidencias con tu sistema.</span>
         </div>`;
     }
 

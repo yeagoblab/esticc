@@ -214,19 +214,39 @@
   text-decoration: underline;
 }
 
-/* ── Estados vacíos / demo ──────────────────────────────────────────────── */
+/* ── Sin amenazas — bloque sutil ─────────────────────────────────────────── */
 
+.radar-sin-alertas-bloque {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: rgba(63,185,80,0.06);
+  border: 1px solid rgba(63,185,80,0.2);
+  border-radius: 8px;
+}
+
+.radar-sin-alertas-badge {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ok);
+  white-space: nowrap;
+}
+
+.radar-sin-alertas-sub {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* Compat (modo avanzado) */
 .radar-sin-alertas {
   text-align: center;
   padding: 28px;
   color: var(--ok);
   font-size: 14px;
   margin-top: 8px;
-}
-
-.radar-sin-alertas-icono {
-  font-size: 34px;
-  margin-bottom: 8px;
 }
 
 .radar-demo-notice {

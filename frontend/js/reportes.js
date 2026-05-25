@@ -192,35 +192,83 @@
       </div>`;
   }
 
+  function gaugeChart(pct, color) {
+    if (pct <= 0) {
+      return `<svg viewBox="0 0 200 115" width="180" height="103" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 20,100 A 80,80 0 0,1 180,100" fill="none" stroke="#30363d" stroke-width="16" stroke-linecap="round"/>
+        <text x="100" y="92" text-anchor="middle" font-size="28" font-weight="700" fill="${color}" font-family="Segoe UI,system-ui,sans-serif">0</text>
+        <text x="100" y="110" text-anchor="middle" font-size="11" fill="#8b949e" font-family="Segoe UI,system-ui,sans-serif">/ 100</text>
+      </svg>`;
+    }
+    const p = Math.min(pct, 100);
+    const angle = (180 - p * 1.8) * Math.PI / 180;
+    const ex = (100 + 80 * Math.cos(angle)).toFixed(2);
+    const ey = (100 - 80 * Math.sin(angle)).toFixed(2);
+    const largeArc = p > 50 ? 1 : 0;
+    const fillPath = p >= 100
+      ? 'M 20,100 A 80,80 0 1,1 179.9,100'
+      : `M 20,100 A 80,80 0 ${largeArc},1 ${ex},${ey}`;
+    return `<svg viewBox="0 0 200 115" width="180" height="103" xmlns="http://www.w3.org/2000/svg">
+      <path d="M 20,100 A 80,80 0 0,1 180,100" fill="none" stroke="#30363d" stroke-width="16" stroke-linecap="round"/>
+      <path d="${fillPath}" fill="none" stroke="${color}" stroke-width="16" stroke-linecap="round"/>
+      <text x="100" y="92" text-anchor="middle" font-size="28" font-weight="700" fill="${color}" font-family="Segoe UI,system-ui,sans-serif">${p}</text>
+      <text x="100" y="110" text-anchor="middle" font-size="11" fill="#8b949e" font-family="Segoe UI,system-ui,sans-serif">/ 100</text>
+    </svg>`;
+  }
+
   function seccionRiesgo(riesgo, color, nivelLabel) {
     const pct = Math.min(riesgo.puntos, 100);
     return `
       <div class="rep-riesgo-card" style="border-color:${color}">
-        <div class="rep-riesgo-izq">
+        <div class="rep-gauge-wrap">
+          ${gaugeChart(pct, color)}
+        </div>
+        <div class="rep-riesgo-info">
           <div class="rep-nivel-label">Nivel de riesgo</div>
           <div class="rep-nivel-valor" style="color:${color}">${nivelLabel}</div>
-        </div>
-        <div class="rep-score-wrap">
-          <div class="rep-score-label">Puntuación global</div>
-          <div class="rep-score-bar-bg">
-            <div class="rep-score-bar" style="width:${pct}%;background:${color}"></div>
+          <div class="rep-nivel-desc" style="margin-top:6px;font-size:12px;color:var(--text-dim);">
+            ${pct <= 10 ? 'Sistema en buen estado. Mantén las defensas activas.' :
+              pct <= 35 ? 'Algunos aspectos a mejorar. Revisa las recomendaciones.' :
+              pct <= 65 ? 'Riesgo significativo detectado. Actúa pronto.' :
+              'Riesgo crítico. Toma acción inmediata.'}
           </div>
-          <div class="rep-score-num">${pct} / 100</div>
         </div>
       </div>`;
   }
 
+  // Mapa de categoría de hallazgo → panel al que navegar
+  const CAT_PANEL = {
+    'Defensas':  'defensas',
+    'Puertos':   'puertos',
+    'Procesos':  'procesos',
+    'Autoinicio': 'autoinicio',
+    'Parches':   'parches',
+  };
+
+  function navegarAModulo(panel) {
+    const btn = document.querySelector(`#sidebar .nav-item[data-panel="${panel}"]`);
+    if (btn) btn.click();
+  }
+  // Exponer globalmente para los onclick inline
+  window.__navegarAModulo = navegarAModulo;
+
   function seccionHallazgos(hallazgos, colorRiesgo) {
     const items = hallazgos.length === 0
       ? `<div class="rep-sin-hallazgos">✅ No se detectaron problemas de seguridad activos.</div>`
-      : hallazgos.map(h => {
+      : hallazgos.map((h, i) => {
           const c = COLORES[h.nivel] || '#8b949e';
           const icono = ICONOS_NIVEL[h.nivel] || '⚪';
+          const panelId = CAT_PANEL[h.categoria];
+          const linkModulo = panelId
+            ? `<button class="rep-hallazgo-link" onclick="__navegarAModulo('${panelId}')">Ver módulo →</button>`
+            : '';
           return `
-            <div class="rep-hallazgo" style="border-left-color:${c}">
-              <span class="rep-hallazgo-nivel" style="color:${c}">${icono} ${(h.nivel || '').toUpperCase()}</span>
-              <span class="rep-hallazgo-cat">${esc(h.categoria)}</span>
-              <span class="rep-hallazgo-texto">— ${esc(h.texto)}</span>
+            <div class="rep-hallazgo-badge" style="background:rgba(${c === '#f85149' ? '248,81,73' : c === '#d29922' ? '210,153,34' : c === '#e3813a' ? '227,129,58' : '63,185,80'},0.07);border-color:rgba(${c === '#f85149' ? '248,81,73' : c === '#d29922' ? '210,153,34' : c === '#e3813a' ? '227,129,58' : '63,185,80'},0.3);">
+              <span class="rep-hallazgo-num">${i + 1}</span>
+              <span class="rep-hallazgo-nivel-badge" style="background:rgba(${c === '#f85149' ? '248,81,73' : c === '#d29922' ? '210,153,34' : c === '#e3813a' ? '227,129,58' : '63,185,80'},0.18);color:${c};">${icono} ${(h.nivel || '').toUpperCase()}</span>
+              <span class="rep-hallazgo-cat-chip">${esc(h.categoria)}</span>
+              <span class="rep-hallazgo-texto">${esc(h.texto)}</span>
+              ${linkModulo}
             </div>`;
         }).join('');
 

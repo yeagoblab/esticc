@@ -69,7 +69,7 @@
   color: var(--text);
 }
 
-/* ── Tarjeta de puntuación de riesgo ─────────────────── */
+/* ── Tarjeta de puntuación de riesgo (Gauge Chart) ───── */
 .rep-riesgo-card {
   display: flex;
   align-items: center;
@@ -77,13 +77,19 @@
   background: var(--bg);
   border: 2px solid;
   border-radius: 12px;
-  padding: 20px 24px;
+  padding: 20px 28px;
   margin-bottom: 20px;
 }
 
-.rep-riesgo-izq {
-  text-align: center;
-  min-width: 110px;
+.rep-gauge-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rep-riesgo-info {
+  flex: 1;
 }
 
 .rep-nivel-label {
@@ -95,40 +101,10 @@
 }
 
 .rep-nivel-valor {
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 800;
   letter-spacing: 1px;
-}
-
-.rep-score-wrap {
-  flex: 1;
-}
-
-.rep-score-label {
-  font-size: 12px;
-  color: var(--text-dim);
-  margin-bottom: 6px;
-}
-
-.rep-score-bar-bg {
-  background: var(--border);
-  border-radius: 4px;
-  height: 8px;
-  width: 100%;
-  overflow: hidden;
-}
-
-.rep-score-bar {
-  height: 8px;
-  border-radius: 4px;
-  transition: width 0.6s ease;
-}
-
-.rep-score-num {
-  font-size: 13px;
-  color: var(--text-dim);
-  margin-top: 6px;
-  text-align: right;
+  line-height: 1.1;
 }
 
 /* ── Secciones del informe ───────────────────────────── */
@@ -146,34 +122,65 @@
   border-bottom: 1px solid var(--border);
 }
 
-/* ── Hallazgos ───────────────────────────────────────── */
-.rep-hallazgo {
+/* ── Hallazgos (badge design) ────────────────────────── */
+.rep-hallazgo-badge {
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
-  padding: 8px 12px;
-  margin-bottom: 6px;
-  background: var(--bg);
-  border-radius: 6px;
-  border-left: 3px solid;
+  padding: 9px 14px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  border: 1px solid;
   font-size: 13px;
 }
 
-.rep-hallazgo-nivel {
-  font-weight: 700;
+.rep-hallazgo-num {
   font-size: 11px;
-  min-width: 60px;
+  font-weight: 700;
+  color: var(--text-dim);
+  min-width: 18px;
+  flex-shrink: 0;
 }
 
-.rep-hallazgo-cat {
-  color: var(--text-dim);
+.rep-hallazgo-nivel-badge {
   font-size: 11px;
-  min-width: 80px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+
+.rep-hallazgo-cat-chip {
+  font-size: 11px;
+  color: var(--text-dim);
+  background: rgba(48,54,61,0.6);
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .rep-hallazgo-texto {
   color: var(--text);
+  flex: 1;
+  min-width: 0;
 }
+
+.rep-hallazgo-link {
+  background: none;
+  border: 1px solid rgba(88,166,255,0.4);
+  color: var(--accent);
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+  font-family: inherit;
+}
+.rep-hallazgo-link:hover { background: rgba(88,166,255,0.1); }
 
 .rep-sin-hallazgos {
   color: var(--ok);
@@ -308,6 +315,9 @@
   .rep-summary-danger { color: #b00020 !important; }
 
   /* Evitar corte de página en hallazgos */
-  .rep-hallazgo, .rep-lista-rec li { page-break-inside: avoid; }
+  .rep-hallazgo-badge, .rep-lista-rec li { page-break-inside: avoid; }
   .rep-section { page-break-inside: avoid; }
+  .rep-hallazgo-badge { background: #f9f9f9 !important; border-color: #ddd !important; }
+  .rep-gauge-wrap svg { display: none; }
+  .rep-riesgo-card { background: #f5f5f5 !important; }
 }

@@ -43,6 +43,55 @@ body.modo-demo #banner-demo { display: flex; }
 
 #btn-salir-demo:hover { background: rgba(248,81,73,0.15); }
 
+/* ── Banner de recordatorio de análisis ─────────────────────────────────── */
+
+#banner-recordatorio {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 20px;
+  background: rgba(210,153,34,0.08);
+  border-bottom: 1px solid var(--warn);
+  font-size: 13px;
+  color: var(--warn);
+  flex-shrink: 0;
+}
+
+#banner-rec-msg {
+  flex: 1;
+  font-weight: 500;
+}
+
+#btn-banner-rec-analizar {
+  background: var(--warn);
+  color: #000;
+  border: none;
+  padding: 5px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+
+#btn-banner-rec-analizar:hover { opacity: 0.85; }
+
+#btn-banner-rec-cerrar {
+  background: none;
+  border: 1px solid rgba(210,153,34,0.5);
+  color: var(--warn);
+  padding: 4px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+#btn-banner-rec-cerrar:hover { background: rgba(210,153,34,0.15); }
+
 /* ── Botón "Modo Demo" en el header ─────────────────────────────────────── */
 
 #btn-activar-demo {

@@ -1,86 +1,102 @@
 /**
  * auditoria.js — Capa de UI para el módulo de auditoría local.
- * Comunica con el sidecar Python vía Tauri command `audit` (Rust → stdin/stdout).
  */
 
-/**
- * invoke() — Wrapper seguro alrededor de window.__TAURI__.tauri.invoke().
- * Intercepta las llamadas cuando el simulador está activo para devolver datos ficticios.
- * Si Tauri no está disponible (apertura directa en navegador), rechaza la promesa con mensaje útil.
- */
 function invoke(cmd, args) {
-  // Si el simulador está activo, redirigir la llamada a los datos ficticios del escenario
   if (cmd === 'audit' && window.SIMULADOR?.activo) {
-    return window.SIMULADOR.interceptar(args.action);  // Devuelve una Promise con datos de demo
+    return window.SIMULADOR.interceptar(args.action);
   }
-  // Comprobar que Tauri está disponible (requiere withGlobalTauri: true en tauri.conf.json)
   if (!window.__TAURI__) {
     return Promise.reject('window.__TAURI__ no disponible. ¿Falta withGlobalTauri en tauri.conf.json?');
   }
-  // Llamada real al comando Rust 'audit' con los argumentos proporcionados
   return window.__TAURI__.tauri.invoke(cmd, args);
 }
 
-// ── Navegación entre paneles ──────────────────────────────────────────────────
+// ── Navegación sidebar ───────────────────────────────────────────────────────
 
-// Asignar un listener de click a cada botón de la barra de navegación
-document.querySelectorAll('nav button').forEach(btn => {
+document.querySelectorAll('#sidebar .nav-item[data-panel]').forEach(btn => {
   btn.addEventListener('click', () => {
-    // Desactivar todos los botones y paneles antes de activar el seleccionado
-    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#sidebar .nav-item[data-panel]').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-
-    btn.classList.add('active');  // Marcar este botón como activo (cambia su estilo CSS)
-
-    // Activar el panel correspondiente usando la convención panel-{data-panel}
+    btn.classList.add('active');
     document.getElementById(`panel-${btn.dataset.panel}`).classList.add('active');
   });
 });
 
 // ── Toggle Modo Básico / Avanzado ─────────────────────────────────────────────
 
-// El toggle cambia la clase 'modo-avanzado' en <body>
-// El CSS usa selectores body.modo-avanzado .vista-avanzada { display: block } para cambiar las vistas
 document.getElementById('modo-checkbox').addEventListener('change', (e) => {
-  const avanzado = e.target.checked;  // true si el checkbox está marcado
-  document.body.classList.toggle('modo-avanzado', avanzado);  // Añadir/quitar clase según estado
-  document.getElementById('modo-label').textContent = avanzado ? 'Modo Avanzado' : 'Modo Básico';
+  const avanzado = e.target.checked;
+  document.body.classList.toggle('modo-avanzado', avanzado);
+  document.getElementById('modo-label').textContent = avanzado ? t('botones.modo_avanzado') : t('botones.modo_basico');
 });
 
-// ── Utilidades de render ──────────────────────────────────────────────────────
+// ── Sistema de Toasts ─────────────────────────────────────────────────────────
 
-const loading = document.getElementById('loading');  // Indicador de carga en la esquina inferior derecha
+let _toastLoadingEl = null;
 
-/** Muestra u oculta el indicador de carga global. */
-function setLoading(on) {
-  loading.style.display = on ? 'block' : 'none';
+function showToast(mensaje, tipo = 'loading', duracion = 0) {
+  const container = document.getElementById('toast-container');
+  if (!container) return null;
+
+  const el = document.createElement('div');
+  el.className = `toast toast-${tipo}`;
+
+  if (tipo === 'loading') {
+    el.innerHTML = `<div class="toast-spinner"></div><span>${mensaje}</span>`;
+  } else {
+    const icono = tipo === 'ok' ? '✅' : tipo === 'danger' ? '❌' : '⚠️';
+    el.innerHTML = `<span>${icono}</span><span>${mensaje}</span>`;
+  }
+
+  container.appendChild(el);
+
+  if (duracion > 0) {
+    setTimeout(() => el.remove(), duracion);
+  }
+
+  return el;
 }
 
-/**
- * Genera un badge HTML coloreado según el tipo.
- * @param {string} texto - Texto visible del badge
- * @param {string} tipo  - 'ok' (verde), 'warn' (amarillo), 'danger' (rojo)
- */
+function removeToast(el) {
+  if (el && el.parentNode) el.remove();
+}
+
+function setLoading(on, texto = 'Analizando…') {
+  if (on) {
+    _toastLoadingEl = showToast(texto, 'loading');
+  } else {
+    removeToast(_toastLoadingEl);
+    _toastLoadingEl = null;
+  }
+}
+
+// ── Utilidades ────────────────────────────────────────────────────────────────
+
 function badge(texto, tipo) {
   return `<span class="badge badge-${tipo}">${texto}</span>`;
 }
 
-/** Actualiza el timestamp del último análisis en la cabecera. */
 function actualizarTimestamp() {
   document.getElementById('ultimo-analisis').textContent =
-    `Último análisis: ${new Date().toLocaleTimeString('es-ES')}`;
+    `${t('msgs.ultimo_analisis')} ${new Date().toLocaleTimeString('es-ES')}`;
 }
 
-// ── Función de render de escudos (vista básica) ────────────────────────────────
+/** Formatea una cadena "IP:Puerto" con colores diferenciados. */
+function formatAddr(addr) {
+  if (!addr || addr === '—') return '—';
+  const lastColon = addr.lastIndexOf(':');
+  if (lastColon === -1) return `<span class="port-ip">${addr}</span>`;
+  const ip   = addr.slice(0, lastColon);
+  const port = addr.slice(lastColon + 1);
+  return `<span class="port-ip">${ip}</span><span class="port-sep">:</span><span class="port-num">${port}</span>`;
+}
 
-/**
- * Genera el HTML de un "escudo" visual para la vista básica.
- * El color del borde depende del estado: verde (ok), rojo (danger), amarillo (warn).
- */
+// ── Función de render de escudos ──────────────────────────────────────────────
+
 function escudo(icono, titulo, activo, desc) {
-  // activo===true → ok (verde), activo===false → danger (rojo), activo===null/undefined → warn (amarillo)
   const cls   = activo === true ? 'ok' : activo === false ? 'danger' : 'warn';
-  const label = activo === true ? 'ACTIVO' : activo === false ? 'INACTIVO' : 'DESCONOCIDO';
+  const label = activo === true ? t('estados.activo') : activo === false ? t('estados.inactivo') : t('estados.desconocido');
   return `
     <div class="escudo ${cls}">
       <div class="escudo-icono">${icono}</div>
@@ -91,40 +107,34 @@ function escudo(icono, titulo, activo, desc) {
 }
 
 // ── Renderizadores por panel ──────────────────────────────────────────────────
-// Cada función recibe data (la salida del escáner Python) y devuelve HTML completo
-// con ambas vistas: <div class="vista-basica"> + <div class="vista-avanzada">
-// El CSS oculta/muestra una u otra según si body tiene la clase "modo-avanzado"
 
 function renderDefensas(data) {
-  const fw = data.firewall;   // Estado del Firewall (objeto con campo 'activo' y 'perfiles')
-  const av = data.antivirus;  // Estado de Windows Defender
-  const bl = data.bitlocker;  // Estado de BitLocker
+  const fw = data.firewall;
+  const av = data.antivirus;
+  const bl = data.bitlocker;
 
-  // Helper local para generar el badge de estado en la vista avanzada
   const estadoBadge = (ok) => ok === true
-    ? badge('Activo', 'ok')
+    ? badge(t('estados.activo'), 'ok')
     : ok === false
-      ? badge('INACTIVO', 'danger')
-      : badge('Desconocido', 'warn');
+      ? badge(t('estados.inactivo'), 'danger')
+      : badge(t('estados.desconocido'), 'warn');
 
-  // Vista básica: 3 escudos grandes con estado visual inmediato
   const basico = `
     <div class="vista-basica">
       <div class="escudos">
-        ${escudo('🛡️', 'Firewall', fw.activo,
+        ${escudo('🛡️', t('escudos.firewall'), fw.activo,
             (fw.perfiles || []).map(p => `${p.nombre}: ${p.habilitado ? '✓' : '✗'}`).join(' · '))}
-        ${escudo('🦠', 'Antivirus', av.activo, 'Windows Defender')}
-        ${escudo('🔒', 'BitLocker',  bl.activo,
+        ${escudo('🦠', t('escudos.antivirus'), av.activo, 'Windows Defender')}
+        ${escudo('🔒', t('escudos.bitlocker'), bl.activo,
             bl.nota || (bl.volumenes || []).map(v => v.unidad).join(', '))}
       </div>
-      <div style="margin-top:16px;">
+      <div style="margin-top:14px;">
         ${data.todas_defensas_activas
-          ? badge('Todas las defensas están activas', 'ok')
-          : badge('Una o más defensas requieren atención', 'danger')}
+          ? badge(t('msgs.defensas_ok'), 'ok')
+          : badge(t('msgs.defensas_warn'), 'danger')}
       </div>
     </div>`;
 
-  // Vista avanzada: filas con detalle de cada defensa y su estado exacto
   const avanzado = `
     <div class="vista-avanzada">
       <div class="status-row">
@@ -145,51 +155,69 @@ function renderDefensas(data) {
         </div>
         ${estadoBadge(bl.activo)}
       </div>
-      <div style="margin-top:16px;">
+      <div style="margin-top:14px;">
         ${data.todas_defensas_activas
-          ? badge('Todas las defensas están activas', 'ok')
-          : badge('Una o más defensas requieren atención', 'danger')}
+          ? badge(t('msgs.defensas_ok'), 'ok')
+          : badge(t('msgs.defensas_warn'), 'danger')}
       </div>
     </div>`;
 
-  return basico + avanzado;  // Ambas vistas en el DOM; el CSS decide cuál mostrar
+  return basico + avanzado;
 }
 
 function renderPuertos(data) {
-  if (!data.length) return '<p style="color:var(--text-dim);margin-top:12px;">No se encontraron conexiones TCP activas.</p>';
+  if (!data.length) return `
+    <div class="empty-state">
+      <div class="empty-state-icon">🌐</div>
+      ${t('msgs.sin_puertos')}
+    </div>`;
 
-  const establecidas = data.filter(c => c.estado === 'ESTABLISHED').length;  // Conexiones activas
-  const escuchando   = data.filter(c => c.estado === 'LISTEN').length;        // Puertos en escucha
-  const nivelCls     = establecidas > 20 ? 'warn' : 'ok';  // Umbral: >20 conexiones simultáneas es inusual
+  const establecidas = data.filter(c => c.estado === 'ESTABLISHED').length;
+  const escuchando   = data.filter(c => c.estado === 'LISTEN').length;
+  const sospechosos  = data.filter(c => {
+    const port = parseInt((c.local || '').split(':').at(-1));
+    return [4444,31337,1337,9999,6666,6667,1080,4899,5900,5555,7777].includes(port);
+  }).length;
+
+  const nivelSosp = sospechosos > 0 ? 'danger' : 'ok';
+  const nivelEst  = establecidas > 30 ? 'warn' : 'ok';
 
   const basico = `
     <div class="vista-basica">
       <div class="escudos">
-        ${escudo('🌐', 'Puertos abiertos', establecidas === 0, `${data.length} sockets totales`)}
-        <div class="escudo ${nivelCls}">
+        <div class="escudo ${nivelEst}">
           <div class="escudo-icono">📡</div>
-          <div class="escudo-titulo">Conexiones activas</div>
+          <div class="escudo-titulo">${t('escudos.conexiones')}</div>
           <div class="escudo-estado" style="font-size:22px;">${establecidas}</div>
-          <div class="escudo-desc">${escuchando} en escucha</div>
+          <div class="escudo-desc">${escuchando} en escucha · ${data.length} sockets totales</div>
+        </div>
+        <div class="escudo ${nivelSosp}">
+          <div class="escudo-icono">${sospechosos > 0 ? '⚠️' : '✅'}</div>
+          <div class="escudo-titulo">${t('escudos.puertos_sosp')}</div>
+          <div class="escudo-estado" style="font-size:22px;">${sospechosos}</div>
+          <div class="escudo-desc">${sospechosos > 0 ? t('msgs.sosp_investiga') : t('msgs.sosp_ninguno')}</div>
         </div>
       </div>
+      ${sospechosos > 0 ? `<div style="margin-top:12px;">${badge(`${sospechosos} ${t('msgs.sosp_badge')}(s) — ${t('msgs.sosp_investiga')}`, 'danger')}</div>` : ''}
     </div>`;
 
-  // Vista avanzada: tabla completa con todos los sockets y sus detalles
-  const filas = data.map(c => `
-    <tr>
+  const filas = data.map(c => {
+    const port = parseInt((c.local || '').split(':').at(-1));
+    const esSosp = [4444,31337,1337,9999,6666,6667,1080,4899,5900,5555,7777].includes(port);
+    return `<tr${esSosp ? ' style="background:rgba(248,81,73,0.07);"' : ''}>
       <td>${c.proceso || '—'}</td>
       <td>${c.pid || '—'}</td>
-      <td>${c.local}</td>
-      <td>${c.remoto || '—'}</td>
-      <td>${c.estado}</td>
-    </tr>`).join('');
+      <td>${formatAddr(c.local)}</td>
+      <td>${c.remoto ? formatAddr(c.remoto) : '—'}</td>
+      <td>${c.estado}${esSosp ? ' ' + badge('⚠ ' + t('msgs.sosp_badge'), 'danger') : ''}</td>
+    </tr>`;
+  }).join('');
 
   const avanzado = `
     <div class="vista-avanzada">
       <table>
         <thead><tr>
-          <th>Proceso</th><th>PID</th><th>Local</th><th>Remoto</th><th>Estado</th>
+          <th>${t('tabla.proceso')}</th><th>${t('tabla.pid')}</th><th>${t('tabla.local')}</th><th>${t('tabla.remoto')}</th><th>${t('tabla.estado')}</th>
         </tr></thead>
         <tbody>${filas}</tbody>
       </table>
@@ -199,40 +227,61 @@ function renderPuertos(data) {
 }
 
 function renderProcesos(data) {
-  if (!data.length) return '<p style="color:var(--text-dim);margin-top:12px;">Sin procesos detectados.</p>';
+  if (!data.length) return `
+    <div class="empty-state">
+      <div class="empty-state-icon">⚙️</div>
+      ${t('msgs.sin_procesos')}
+    </div>`;
 
-  // Contar procesos con al menos una alerta (CPU elevada, RAM elevada, o sin ruta)
-  const alertas  = data.filter(p => p.alerta_cpu || p.alerta_ram || p.sin_ruta).length;
-  const nivelCls = alertas > 5 ? 'danger' : alertas > 0 ? 'warn' : 'ok';
+  // Filtrar System Idle Process para los conteos de alertas
+  const sinIdle    = data.filter(p => p.nombre !== 'System Idle Process' && p.nombre !== 'Idle');
+  const alertas    = sinIdle.filter(p => p.alerta_cpu || p.alerta_ram || p.sin_ruta).length;
+  const nivelCls   = alertas > 5 ? 'danger' : alertas > 0 ? 'warn' : 'ok';
+
+  // Top 10 procesos por CPU para vista básica (sin System Idle)
+  const top10 = sinIdle.slice(0, 10);
+
+  const topItems = top10.map(p => {
+    const alerta = p.alerta_cpu || p.alerta_ram || p.sin_ruta;
+    const cpuCls = p.alerta_cpu ? 'alerta' : p.cpu_pct > 10 ? 'warn' : 'normal';
+    return `<div class="proc-top-item">
+      <span class="proc-top-name" title="${p.nombre}">${p.nombre}</span>
+      ${alerta ? badge(p.sin_ruta ? t('msgs.sin_ruta') : t('msgs.revisar'), 'danger') : ''}
+      <span class="proc-top-cpu ${cpuCls}">${p.cpu_pct.toFixed(1)}%</span>
+    </div>`;
+  }).join('');
 
   const basico = `
     <div class="vista-basica">
       <div class="escudos">
         <div class="escudo ${nivelCls}">
           <div class="escudo-icono">⚙️</div>
-          <div class="escudo-titulo">Procesos activos</div>
-          <div class="escudo-estado" style="font-size:22px;">${data.length}</div>
-          <div class="escudo-desc">en ejecución ahora</div>
+          <div class="escudo-titulo">${t('escudos.procesos')}</div>
+          <div class="escudo-estado" style="font-size:22px;">${sinIdle.length}</div>
+          <div class="escudo-desc">${t('msgs.cpu_desc')}</div>
         </div>
         <div class="escudo ${alertas === 0 ? 'ok' : nivelCls}">
           <div class="escudo-icono">${alertas === 0 ? '✅' : '⚠️'}</div>
-          <div class="escudo-titulo">Procesos a revisar</div>
+          <div class="escudo-titulo">${t('escudos.a_revisar')}</div>
           <div class="escudo-estado" style="font-size:22px;">${alertas}</div>
-          <div class="escudo-desc">CPU o RAM elevada / sin ruta</div>
+          <div class="escudo-desc">${t('msgs.proc_desc')}</div>
         </div>
+      </div>
+      <div class="proc-top-list">
+        <div class="proc-top-title">${t('msgs.proc_top')}</div>
+        ${topItems}
       </div>
     </div>`;
 
-  // Vista avanzada: tabla con los 50 procesos de mayor consumo de CPU
-  const top   = data.slice(0, 50);  // Ya vienen ordenados por CPU descendente desde el escáner
-  const filas = top.map(p => {
-    const alerta = p.alerta_cpu || p.alerta_ram || p.sin_ruta;  // Cualquier alerta activa
-    return `<tr style="${alerta ? 'color:var(--warn)' : ''}">
-      <td>${p.nombre}</td>
+  const filas = sinIdle.slice(0, 50).map(p => {
+    const alerta = p.alerta_cpu || p.alerta_ram || p.sin_ruta;
+    const rowStyle = p.alerta_cpu ? 'color:var(--danger)' : alerta ? 'color:var(--warn)' : '';
+    return `<tr${rowStyle ? ` style="${rowStyle}"` : ''}>
+      <td title="${p.nombre}">${p.nombre}</td>
       <td>${p.pid}</td>
       <td>${p.cpu_pct.toFixed(1)}%</td>
       <td>${p.ram_mb} MB</td>
-      <td>${alerta ? badge('Revisar', 'warn') : ''}</td>
+      <td>${p.sin_ruta ? badge(t('msgs.sin_ruta'), 'danger') : alerta ? badge(t('msgs.revisar'), 'warn') : ''}</td>
     </tr>`;
   }).join('');
 
@@ -240,7 +289,7 @@ function renderProcesos(data) {
     <div class="vista-avanzada">
       <table>
         <thead><tr>
-          <th>Proceso</th><th>PID</th><th>CPU</th><th>RAM</th><th>Alerta</th>
+          <th>${t('tabla.proceso')}</th><th>${t('tabla.pid')}</th><th>${t('tabla.cpu')}</th><th>${t('tabla.ram')}</th><th>${t('tabla.alerta')}</th>
         </tr></thead>
         <tbody>${filas}</tbody>
       </table>
@@ -250,49 +299,79 @@ function renderProcesos(data) {
 }
 
 function renderAutoinicio(data) {
-  const reg    = data.registro || [];             // Entradas del registro Run/RunOnce
-  const tareas = data.tareas_programadas || [];   // Tareas del Programador de tareas
+  const reg    = data.registro || [];
+  const tareas = data.tareas_programadas || [];
   const total  = reg.length;
-  const nivelCls = total > 15 ? 'warn' : 'ok';   // Umbral: >15 entradas en Run es inusual
+  const nivelCls = total > 15 ? 'warn' : 'ok';
+
+  // Función para calcular impacto estimado de una entrada de autoinicio
+  function impactoEntrada(entrada) {
+    const cmd = (entrada.comando || '').toLowerCase();
+    if (cmd.includes('powershell') || cmd.includes('wscript') || cmd.includes('cscript') || cmd.includes('cmd.exe')) return 'alto';
+    if (cmd.includes('update') || cmd.includes('cloud') || cmd.includes('sync')) return 'medio';
+    return 'bajo';
+  }
 
   const basico = `
     <div class="vista-basica">
       <div class="escudos">
         <div class="escudo ${nivelCls}">
           <div class="escudo-icono">🚀</div>
-          <div class="escudo-titulo">Programas de autoinicio</div>
+          <div class="escudo-titulo">${t('escudos.autoinicio')}</div>
           <div class="escudo-estado" style="font-size:22px;">${total}</div>
-          <div class="escudo-desc">entradas en el registro</div>
+          <div class="escudo-desc">${t('msgs.reg_entries')}</div>
         </div>
         <div class="escudo ok">
           <div class="escudo-icono">🗓️</div>
-          <div class="escudo-titulo">Tareas programadas</div>
+          <div class="escudo-titulo">${t('escudos.tareas')}</div>
           <div class="escudo-estado" style="font-size:22px;">${tareas.length}</div>
-          <div class="escudo-desc">en el sistema</div>
+          <div class="escudo-desc">${t('msgs.en_sistema')}</div>
         </div>
       </div>
+      ${total === 0 ? `
+        <div class="empty-state" style="margin-top:12px;">
+          <div class="empty-state-icon">✅</div>
+          ${t('msgs.sin_autoinicio')}
+        </div>` : ''}
     </div>`;
 
-  // Vista avanzada: dos tablas separadas (registro y tareas programadas)
   const filasReg = reg.length
-    ? reg.map(e => `<tr><td>${e.origen}</td><td>${e.nombre}</td><td style="word-break:break-all;">${e.comando}</td></tr>`).join('')
-    : '<tr><td colspan="3" style="color:var(--text-dim);">Sin entradas en el registro.</td></tr>';
+    ? reg.map(e => {
+        const impacto = impactoEntrada(e);
+        return `<tr>
+          <td>${e.origen}</td>
+          <td>${e.nombre}</td>
+          <td class="cmd-cell"><span class="cmd-short" title="${e.comando}">${e.comando}</span></td>
+          <td>${badge(impacto, impacto === 'alto' ? 'danger' : impacto === 'medio' ? 'warn' : 'ok')}</td>
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="4">
+        <div class="empty-state" style="border:none;padding:16px;">
+          <div class="empty-state-icon">✅</div>
+          ${t('msgs.sin_autoinicio')}
+        </div>
+      </td></tr>`;
 
   const filasTareas = tareas.slice(0, 30).map(t =>
-    `<tr><td>${t.nombre}</td><td>${t.estado}</td><td>${t.siguiente_ejecucion}</td></tr>`
+    `<tr><td>${t.nombre}</td><td>${t.estado}</td><td>${t.siguiente_ejecucion || '—'}</td></tr>`
   ).join('');
 
   const avanzado = `
     <div class="vista-avanzada">
-      <h3 style="margin:8px 0 8px;font-size:13px;color:var(--text-dim);">Registro (Run / RunOnce)</h3>
+      <h3 style="margin:0 0 8px;font-size:13px;color:var(--text-dim);">${t('tabla.reg_title')}</h3>
       <table>
-        <thead><tr><th>Origen</th><th>Nombre</th><th>Comando</th></tr></thead>
+        <thead><tr><th>${t('tabla.origen')}</th><th>${t('tabla.nombre')}</th><th>${t('tabla.comando')}</th><th>${t('tabla.impacto')}</th></tr></thead>
         <tbody>${filasReg}</tbody>
       </table>
-      <h3 style="margin:16px 0 8px;font-size:13px;color:var(--text-dim);">Tareas Programadas</h3>
+      <h3 style="margin:16px 0 8px;font-size:13px;color:var(--text-dim);">${t('tabla.tareas_title')}</h3>
       <table>
-        <thead><tr><th>Nombre</th><th>Estado</th><th>Próxima ejecución</th></tr></thead>
-        <tbody>${filasTareas || '<tr><td colspan="3" style="color:var(--text-dim);">Sin tareas.</td></tr>'}</tbody>
+        <thead><tr><th>${t('tabla.nombre')}</th><th>${t('tabla.estado')}</th><th>${t('tabla.prox_ejec')}</th></tr></thead>
+        <tbody>${filasTareas || `<tr><td colspan="3">
+          <div class="empty-state" style="border:none;padding:14px;">
+            <div class="empty-state-icon">🗓️</div>
+            ${t('msgs.sin_tareas')}
+          </div>
+        </td></tr>`}</tbody>
       </table>
     </div>`;
 
@@ -300,46 +379,52 @@ function renderAutoinicio(data) {
 }
 
 function renderParches(data) {
-  const pendientes = data.actualizaciones_pendientes || [];
-  const nivelCls   = data.sistema_actualizado ? 'ok' : pendientes.length > 5 ? 'danger' : 'warn';
+  const pendientes  = data.actualizaciones_pendientes || [];
+  const nivelCls    = data.sistema_actualizado ? 'ok' : pendientes.length > 5 ? 'danger' : 'warn';
+  const timestamp   = new Date().toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
 
   const basico = `
     <div class="vista-basica">
       <div class="escudos">
         ${escudo(
-          data.sistema_actualizado ? '✅' : '⚠️',
-          'Windows Update',
+          data.sistema_actualizado ? '✅' : pendientes.length > 5 ? '🔴' : '⚠️',
+          t('escudos.win_update'),
           data.sistema_actualizado,
           data.sistema_actualizado
-            ? `Actualizado · ${data.ultima_actualizacion_exitosa || ''}`
-            : `${pendientes.length} actualización(es) pendiente(s)`
+            ? `${t('estados.actualizado')} · ${data.ultima_actualizacion_exitosa || ''}`
+            : `${pendientes.length} ${t('msgs.pendientes')}`
         )}
       </div>
+      <div class="scan-ts">${t('msgs.consultado')} ${timestamp}</div>
     </div>`;
 
-  // Vista avanzada: tabla con el número KB, título y si requiere reinicio
   const avanzado = `
     <div class="vista-avanzada">
       <div class="status-row">
         <div>
-          <div class="status-label">Sistema operativo</div>
-          <div class="status-desc">Última actualización exitosa: ${data.ultima_actualizacion_exitosa || '—'}</div>
+          <div class="status-label">${t('escudos.win_update')}</div>
+          <div class="status-desc">${t('msgs.ultima_act')} ${data.ultima_actualizacion_exitosa || '—'}</div>
         </div>
         ${data.sistema_actualizado
-          ? badge('Actualizado', 'ok')
-          : badge(`${pendientes.length} actualización(es) pendiente(s)`, 'warn')}
+          ? badge(t('estados.actualizado'), 'ok')
+          : badge(`${pendientes.length} ${t('msgs.pendientes')}`, 'warn')}
       </div>
       ${pendientes.length ? `
         <table style="margin-top:12px;">
-          <thead><tr><th>KB</th><th>Título</th><th>Reinicio</th></tr></thead>
+          <thead><tr><th>${t('tabla.kb')}</th><th>${t('tabla.titulo')}</th><th>${t('tabla.reinicio')}</th></tr></thead>
           <tbody>${pendientes.map(p => `
             <tr>
               <td>${p.kb || '—'}</td>
               <td>${p.titulo || p.title || '—'}</td>
-              <td>${p.reinicio_requerido || p.obligatoria ? badge('Sí', 'warn') : '—'}</td>
+              <td>${p.reinicio_requerido || p.obligatoria ? badge(t('tabla.reinicio_req'), 'warn') : '—'}</td>
             </tr>`).join('')}
           </tbody>
-        </table>` : ''}
+        </table>` : `
+        <div class="empty-state">
+          <div class="empty-state-icon">✅</div>
+          ${t('msgs.sin_parches')}
+        </div>`}
+      <div class="scan-ts">${t('msgs.consultado')} ${timestamp}</div>
     </div>`;
 
   return basico + avanzado;
@@ -347,54 +432,61 @@ function renderParches(data) {
 
 // ── Función principal de escaneo ──────────────────────────────────────────────
 
-/**
- * escanear() — Ejecuta un escáner, actualiza la UI con los resultados y muestra la tarjeta educativa.
- * @param {string}   action      - Nombre de la acción IPC (ej: 'scan_ports')
- * @param {string}   btnId       - ID del botón que lanzó el escaneo (para deshabilitarlo mientras carga)
- * @param {string}   resultadoId - ID del div donde se renderizará el resultado
- * @param {Function} renderer    - Función que convierte data → HTML (una de las render* de arriba)
- */
 async function escanear(action, btnId, resultadoId, renderer) {
-  const btn = document.getElementById(btnId);       // Referencia al botón de escaneo
-  const div = document.getElementById(resultadoId); // Referencia al contenedor de resultados
-  btn.disabled = true;   // Deshabilitar el botón para evitar clics repetidos durante el escaneo
-  setLoading(true);      // Mostrar el indicador de carga global
+  const btn = document.getElementById(btnId);
+  const div = document.getElementById(resultadoId);
+  btn.disabled = true;
+  setLoading(true, t('estados.analizando'));
   try {
-    const resultado = await invoke('audit', { action });  // Llamada IPC al sidecar Python
+    const resultado = await invoke('audit', { action });
 
     if (!resultado.ok) {
-      // El escáner devolvió un error explícito (ej: permisos insuficientes)
-      div.innerHTML = `<p style="color:var(--danger);">Error del escáner: ${resultado.error}</p>`;
+      div.innerHTML = `<p style="color:var(--danger);margin-top:10px;">Error del escáner: ${resultado.error}</p>`;
+      showToast(t('estados.error'), 'danger', 3000);
     } else {
-      // Guardar los datos crudos de puertos/procesos para que el Radar OSINT pueda correlacionar
-      // Si el usuario escanea puertos y luego abre el radar, tendrá datos reales para correlacionar
       window.ULTIMO_SCAN = window.ULTIMO_SCAN || {};
-      if (action === 'scan_ports')     window.ULTIMO_SCAN.puertos  = resultado.data;  // Array de conexiones
-      if (action === 'scan_processes') window.ULTIMO_SCAN.procesos = resultado.data;  // Array de procesos
+      if (action === 'scan_ports')     window.ULTIMO_SCAN.puertos  = resultado.data;
+      if (action === 'scan_processes') window.ULTIMO_SCAN.procesos = resultado.data;
 
-      // En modo demo, obtener la tarjeta educativa del escenario activo
       const tarjetaInfo = window.SIMULADOR?.activo ? window.SIMULADOR.tarjeta(action) : null;
       const tarjetaHtml = tarjetaInfo ? window.SIMULADOR.renderTarjeta(tarjetaInfo) : '';
 
-      // Renderizar: HTML del escáner + tarjeta educativa (si hay) en el contenedor
       div.innerHTML = renderer(resultado.data) + tarjetaHtml;
-      actualizarTimestamp();  // Actualizar el timestamp del header
+      actualizarTimestamp();
+      showToast(t('estados.completado'), 'ok', 2500);
+      // Notificar a background.js que se ha completado un escaneo real para actualizar
+      // el timestamp de último análisis en localStorage y ocultar el banner de recordatorio
+      if (window.ESTICC_BG) window.ESTICC_BG.registrarEscaneo();
     }
   } catch (e) {
-    // Error de comunicación IPC (sidecar caído, pipe roto, Tauri no disponible...)
-    div.innerHTML = `<p style="color:var(--danger);">Error de comunicación: ${e}</p>`;
+    div.innerHTML = `<p style="color:var(--danger);margin-top:10px;">Error de comunicación: ${e}</p>`;
+    showToast(t('estados.error_com'), 'danger', 3500);
   } finally {
-    // Siempre restaurar el botón y ocultar el loading, aunque haya habido error
     btn.disabled = false;
     setLoading(false);
   }
 }
 
-// ── Conexión de botones con sus escáneres ─────────────────────────────────────
+// ── Conexión de botones ───────────────────────────────────────────────────────
 
-// Cada botón dispara escanear() con la acción, IDs y renderer correspondientes
 document.getElementById('btn-defensas').addEventListener('click',  () => escanear('scan_defenses', 'btn-defensas',  'resultado-defensas',  renderDefensas));
 document.getElementById('btn-puertos').addEventListener('click',   () => escanear('scan_ports',    'btn-puertos',   'resultado-puertos',   renderPuertos));
 document.getElementById('btn-procesos').addEventListener('click',  () => escanear('scan_processes','btn-procesos',  'resultado-procesos',  renderProcesos));
 document.getElementById('btn-autoinicio').addEventListener('click',() => escanear('scan_startup',  'btn-autoinicio','resultado-autoinicio', renderAutoinicio));
 document.getElementById('btn-parches').addEventListener('click',   () => escanear('scan_patches',  'btn-parches',   'resultado-parches',   renderParches));
+
+/**
+ * window.escanearTodo() — Ejecuta los 5 escáneres en secuencia usando await.
+ * Es necesario usar await en cada llamada para que el sidecar Python reciba
+ * una petición a la vez y no se saturen los pipes de comunicación IPC.
+ * background.js llama a esta función cuando autoscan_inicio = true en la config.
+ * Al ser async, el llamante puede hacer: await window.escanearTodo() para saber
+ * cuándo han terminado todos los escáneres.
+ */
+window.escanearTodo = async function () {
+  await escanear('scan_defenses', 'btn-defensas',  'resultado-defensas',  renderDefensas);   // 1. Defensas (Firewall, AV, BitLocker)
+  await escanear('scan_ports',    'btn-puertos',   'resultado-puertos',   renderPuertos);    // 2. Puertos TCP abiertos
+  await escanear('scan_processes','btn-procesos',  'resultado-procesos',  renderProcesos);   // 3. Procesos activos (CPU/RAM)
+  await escanear('scan_startup',  'btn-autoinicio','resultado-autoinicio', renderAutoinicio); // 4. Registro Run/RunOnce + tareas
+  await escanear('scan_patches',  'btn-parches',   'resultado-parches',   renderParches);    // 5. Actualizaciones pendientes
+};

@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="css/radar.css" />
   <link rel="stylesheet" href="css/reportes.css" />
   <link rel="stylesheet" href="css/historial.css" />
+  <link rel="stylesheet" href="css/config.css" />
   <style>
     :root {
       --bg: #0d1117;
@@ -32,19 +33,25 @@
       color: var(--text);
       font-family: 'Segoe UI', system-ui, sans-serif;
       font-size: 14px;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
 
+    /* ── Header ─────────────────────────────────────────────────────── */
     header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 12px 24px;
+      gap: 12px;
+      padding: 10px 20px;
       background: var(--surface);
       border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      z-index: 10;
     }
 
-    header h1 { font-size: 18px; font-weight: 600; color: var(--accent); }
-    header span { font-size: 12px; color: var(--text-dim); }
+    header h1 { font-size: 17px; font-weight: 700; color: var(--accent); letter-spacing: 0.5px; }
 
     #modo-toggle {
       display: flex;
@@ -52,14 +59,15 @@
       gap: 8px;
       cursor: pointer;
       user-select: none;
+      margin-left: auto;
     }
 
     #modo-toggle input[type=checkbox] { display: none; }
 
     .toggle-track {
-      width: 40px; height: 20px;
+      width: 36px; height: 18px;
       background: var(--border);
-      border-radius: 10px;
+      border-radius: 9px;
       position: relative;
       transition: background 0.2s;
     }
@@ -67,7 +75,7 @@
     .toggle-track::after {
       content: '';
       position: absolute;
-      width: 16px; height: 16px;
+      width: 14px; height: 14px;
       background: #fff;
       border-radius: 50%;
       top: 2px; left: 2px;
@@ -75,35 +83,127 @@
     }
 
     #modo-checkbox:checked + .toggle-track { background: var(--accent); }
-    #modo-checkbox:checked + .toggle-track::after { left: 22px; }
+    #modo-checkbox:checked + .toggle-track::after { left: 20px; }
 
-    nav {
+    #modo-label { font-size: 12px; color: var(--text-dim); }
+
+    #ultimo-analisis { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+
+    /* ── Layout principal ──────────────────────────────────────────── */
+    .app-layout {
       display: flex;
-      gap: 4px;
-      padding: 8px 24px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
+      flex: 1;
+      overflow: hidden;
     }
 
-    nav button {
+    /* ── Sidebar ────────────────────────────────────────────────────── */
+    #sidebar {
+      width: 200px;
+      min-width: 200px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      transition: width 0.2s ease, min-width 0.2s ease;
+      overflow: hidden;
+      flex-shrink: 0;
+      z-index: 5;
+    }
+
+    #sidebar.collapsed { width: 48px; min-width: 48px; }
+
+    .sidebar-top {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 8px;
+      border-bottom: 1px solid var(--border);
+      min-height: 40px;
+      flex-shrink: 0;
+    }
+
+    #btn-sidebar-toggle {
       background: none;
-      border: 1px solid transparent;
+      border: 1px solid var(--border);
       color: var(--text-dim);
-      padding: 6px 14px;
+      width: 26px; height: 26px;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 13px;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       transition: all 0.15s;
+      flex-shrink: 0;
     }
 
-    nav button:hover { color: var(--text); border-color: var(--border); }
-    nav button.active { color: var(--accent); border-color: var(--accent); background: rgba(88,166,255,0.1); }
+    #btn-sidebar-toggle:hover { color: var(--text); border-color: var(--accent); }
 
-    main { padding: 24px; }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 14px;
+      background: none;
+      border: none;
+      border-left: 3px solid transparent;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 13px;
+      text-align: left;
+      width: 100%;
+      white-space: nowrap;
+      transition: color 0.15s, background 0.15s, border-color 0.15s;
+      font-family: inherit;
+      flex-shrink: 0;
+    }
+
+    .nav-item:hover { color: var(--text); background: var(--hover); }
+
+    .nav-item.active {
+      color: var(--accent);
+      border-left-color: var(--accent);
+      background: rgba(88,166,255,0.08);
+      font-weight: 600;
+    }
+
+    .nav-icon {
+      font-size: 15px;
+      flex-shrink: 0;
+      width: 18px;
+      text-align: center;
+    }
+
+    .nav-label {
+      overflow: hidden;
+      transition: opacity 0.15s;
+      white-space: nowrap;
+    }
+
+    #sidebar.collapsed .nav-label { opacity: 0; pointer-events: none; }
+    #sidebar.collapsed .nav-item  { padding: 9px; justify-content: center; }
+
+    .nav-sep {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 10px;
+      flex-shrink: 0;
+    }
+
+    /* ── Área de contenido ──────────────────────────────────────────── */
+    #content-area {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    main { padding: 24px; flex: 1; }
 
     .panel { display: none; }
     .panel.active { display: block; }
 
+    /* ── Card ────────────────────────────────────────────────────────── */
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -112,22 +212,94 @@
       margin-bottom: 16px;
     }
 
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .card-header h2 { font-size: 15px; color: var(--text); margin: 0; flex: 1; }
     .card h2 { font-size: 15px; margin-bottom: 12px; color: var(--text); }
 
+    /* ── Botones de acción ───────────────────────────────────────────── */
     .scan-btn {
       background: var(--accent);
       color: #000;
       border: none;
-      padding: 8px 18px;
+      padding: 7px 16px;
       border-radius: 6px;
       cursor: pointer;
-      font-weight: 600;
+      font-weight: 700;
       font-size: 13px;
-      transition: opacity 0.15s;
+      transition: opacity 0.15s, transform 0.1s;
+      white-space: nowrap;
     }
 
-    .scan-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .scan-btn:hover:not(:disabled) { opacity: 0.85; transform: translateY(-1px); }
+    .scan-btn:active:not(:disabled) { transform: translateY(0); }
+    .scan-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
+    .scan-btn-secondary {
+      background: var(--surface);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+
+    .scan-btn-secondary:hover:not(:disabled) { background: rgba(88,166,255,0.1); }
+
+    /* ── Toast notifications ─────────────────────────────────────────── */
+    #toast-container {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 8px;
+      pointer-events: none;
+      align-items: center;
+    }
+
+    .toast {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 16px;
+      font-size: 13px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      animation: toast-in 0.2s ease;
+      pointer-events: auto;
+      white-space: nowrap;
+    }
+
+    .toast.toast-loading { border-color: var(--accent); }
+    .toast.toast-ok      { border-color: var(--ok); }
+    .toast.toast-danger  { border-color: var(--danger); }
+    .toast.toast-warn    { border-color: var(--warn); }
+
+    .toast-spinner {
+      width: 13px; height: 13px;
+      border: 2px solid rgba(88,166,255,0.3);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Tablas ──────────────────────────────────────────────────────── */
     table {
       width: 100%;
       border-collapse: collapse;
@@ -149,7 +321,28 @@
     }
 
     tr:last-child td { border-bottom: none; }
+    tbody tr:nth-child(even) td { background: rgba(48,54,61,0.15); }
 
+    /* Columna de dirección IP:Puerto */
+    .port-ip  { color: var(--text-dim); font-family: 'Consolas', monospace; font-size: 12px; }
+    .port-sep { color: var(--border); margin: 0 1px; }
+    .port-num { color: var(--accent); font-family: 'Consolas', monospace; font-size: 12px; font-weight: 600; }
+
+    /* Rutas largas colapsadas */
+    .cmd-cell { max-width: 220px; }
+    .cmd-short {
+      display: block;
+      font-family: 'Consolas', monospace;
+      font-size: 11px;
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 220px;
+      cursor: help;
+    }
+
+    /* ── Badges ──────────────────────────────────────────────────────── */
     .badge {
       display: inline-block;
       padding: 2px 8px;
@@ -162,6 +355,11 @@
     .badge-warn   { background: rgba(210,153,34,0.15); color: var(--warn); }
     .badge-danger { background: rgba(248,81,73,0.15);  color: var(--danger); }
 
+    .badge-alto  { background: rgba(248,81,73,0.12);  color: var(--danger); }
+    .badge-medio { background: rgba(210,153,34,0.12); color: var(--warn);   }
+    .badge-bajo  { background: rgba(63,185,80,0.12);  color: var(--ok);     }
+
+    /* ── Status rows ─────────────────────────────────────────────────── */
     .status-row {
       display: flex;
       justify-content: space-between;
@@ -169,45 +367,30 @@
       padding: 10px 0;
       border-bottom: 1px solid var(--border);
     }
-
     .status-row:last-child { border-bottom: none; }
-
     .status-label { font-weight: 500; }
     .status-desc  { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
 
-    #loading {
-      position: fixed;
-      bottom: 16px; right: 16px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-size: 12px;
-      color: var(--text-dim);
-      display: none;
-    }
-
-    /* ── Vistas básica / avanzada ───────────────────────────── */
+    /* ── Vistas básica / avanzada ────────────────────────────────────── */
     .vista-basica   { display: block; }
     .vista-avanzada { display: none;  }
-
     body.modo-avanzado .vista-basica   { display: none;  }
     body.modo-avanzado .vista-avanzada { display: block; }
 
-    /* ── Vista básica: escudos grandes ──────────────────────── */
+    /* ── Escudos (vista básica) ──────────────────────────────────────── */
     .escudos {
       display: flex;
       flex-wrap: wrap;
-      gap: 16px;
-      margin-top: 16px;
+      gap: 14px;
+      margin-top: 14px;
     }
 
     .escudo {
-      flex: 1 1 160px;
+      flex: 1 1 150px;
       background: var(--bg);
       border: 2px solid var(--border);
       border-radius: 12px;
-      padding: 20px 16px;
+      padding: 18px 14px;
       text-align: center;
       transition: border-color 0.2s;
     }
@@ -216,13 +399,8 @@
     .escudo.warn   { border-color: var(--warn); }
     .escudo.danger { border-color: var(--danger); }
 
-    .escudo-icono { font-size: 32px; margin-bottom: 8px; }
-
-    .escudo-titulo {
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
+    .escudo-icono  { font-size: 28px; margin-bottom: 8px; }
+    .escudo-titulo { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
 
     .escudo-estado {
       font-size: 12px;
@@ -234,255 +412,476 @@
     .escudo.warn   .escudo-estado { color: var(--warn); }
     .escudo.danger .escudo-estado { color: var(--danger); }
 
-    .escudo-desc {
-      font-size: 11px;
-      color: var(--text-dim);
-      margin-top: 4px;
+    .escudo-desc { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+    /* ── Processs top-N (vista básica) ───────────────────────────────── */
+    .proc-top-list {
+      margin-top: 14px;
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
     }
 
+    .proc-top-title {
+      font-size: 11px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .proc-top-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(48,54,61,0.35);
+      font-size: 12px;
+    }
+
+    .proc-top-item:last-child { border-bottom: none; }
+
+    .proc-top-name {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-family: 'Consolas', monospace;
+      font-size: 12px;
+    }
+
+    .proc-top-cpu {
+      font-weight: 700;
+      font-size: 13px;
+      min-width: 52px;
+      text-align: right;
+    }
+
+    .proc-top-cpu.alerta { color: var(--danger); }
+    .proc-top-cpu.warn   { color: var(--warn); }
+    .proc-top-cpu.normal { color: var(--text-dim); }
+
+    /* ── Empty state ─────────────────────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 28px 20px;
+      color: var(--text-dim);
+      font-size: 13px;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      margin-top: 12px;
+    }
+    .empty-state-icon { font-size: 28px; margin-bottom: 8px; }
+
+    /* ── Scan timestamp ──────────────────────────────────────────────── */
+    .scan-ts {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 8px;
+      text-align: right;
+    }
+
+    /* ── Resumen básico (puertos/procesos) ───────────────────────────── */
     .resumen-basico {
       display: flex;
       align-items: center;
       gap: 16px;
-      margin-top: 16px;
-      padding: 16px;
+      margin-top: 14px;
+      padding: 14px;
       background: var(--bg);
       border-radius: 10px;
       border: 1px solid var(--border);
     }
-
     .resumen-numero {
-      font-size: 40px;
+      font-size: 36px;
       font-weight: 700;
       line-height: 1;
     }
-
     .resumen-numero.ok     { color: var(--ok); }
     .resumen-numero.warn   { color: var(--warn); }
     .resumen-numero.danger { color: var(--danger); }
-
-    .resumen-texto { font-size: 13px; }
+    .resumen-texto    { font-size: 13px; }
     .resumen-subtexto { font-size: 12px; color: var(--text-dim); margin-top: 3px; }
   </style>
 </head>
 <body>
 
+<!-- ── Header ──────────────────────────────────────────────────────── -->
 <header>
   <h1>ESTICC</h1>
+  <button id="btn-activar-demo" data-i18n="botones.modo_demo">⚠️ Modo Demo</button>
   <label id="modo-toggle">
     <input type="checkbox" id="modo-checkbox" />
     <div class="toggle-track"></div>
-    <span id="modo-label">Modo Básico</span>
+    <span id="modo-label" data-i18n="botones.modo_basico">Modo Básico</span>
   </label>
-  <button id="btn-activar-demo">⚠️ Modo Demo</button>
-  <span id="ultimo-analisis">Último análisis: —</span>
+  <span id="ultimo-analisis">—</span>
 </header>
 
-<div id="banner-demo">
-  <span class="banner-icono">⚠️</span>
-  MODO DEMOSTRACIÓN ACTIVO — Los datos mostrados son ficticios con fines educativos
-  <button id="btn-salir-demo">✕ Salir del modo demo</button>
-</div>
+<!-- ── Layout app ───────────────────────────────────────────────────── -->
+<div class="app-layout">
 
-<div id="panel-simulador">
-  <div class="sim-titulo">Selecciona un escenario de amenaza</div>
-  <div class="sim-escenarios">
-    <button class="sim-btn" data-escenario="1">
-      <span class="sim-nivel nivel-critico">CRÍTICO</span>
-      <span class="sim-nombre">🎭 RAT — Puerto 4444 abierto</span>
-      <span class="sim-desc">Troyano de acceso remoto con conexión ESTABLISHED a IP externa</span>
-    </button>
-    <button class="sim-btn" data-escenario="2">
-      <span class="sim-nivel nivel-critico">CRÍTICO</span>
-      <span class="sim-nombre">⛏️ Cryptojacker disfrazado</span>
-      <span class="sim-desc">svchost32.exe al 99% CPU — minero camuflado como proceso de sistema</span>
-    </button>
-    <button class="sim-btn" data-escenario="3">
-      <span class="sim-nivel nivel-alto">ALTO</span>
-      <span class="sim-nombre">🛡️ Sistema abandonado</span>
-      <span class="sim-desc">Defender + Firewall desactivados · 14 parches pendientes · 30 días sin analizar</span>
-    </button>
-    <button class="sim-btn" data-escenario="4">
-      <span class="sim-nivel nivel-critico">CRÍTICO</span>
-      <span class="sim-nombre">⌨️ Keylogger activo</span>
-      <span class="sim-desc">Agent Tesla exfiltrando contraseñas por SMTP (puertos 25/587)</span>
-    </button>
-    <button class="sim-btn" data-escenario="5">
-      <span class="sim-nivel nivel-critico">CRÍTICO</span>
-      <span class="sim-nombre">⛏️ XMRig — Minero de Monero</span>
-      <span class="sim-desc">xmrig.exe al 95% CPU conectado a pool stratum (puertos 3333/14444)</span>
-    </button>
-    <button class="sim-btn" data-escenario="6">
-      <span class="sim-nivel nivel-critico">CRÍTICO</span>
-      <span class="sim-nombre">🔒 Ransomware en curso</span>
-      <span class="sim-desc">Cifrado activo + eliminación de copias de seguridad + Defender caído</span>
-    </button>
-    <button class="sim-btn" data-escenario="7">
-      <span class="sim-nivel nivel-critico">CRÍTICO</span>
-      <span class="sim-nombre">🐛 Gusano de Red (EternalBlue)</span>
-      <span class="sim-desc">Propagación SMB activa · MS17-010 sin parchear · Firewall caído</span>
-    </button>
-    <button class="sim-btn" data-escenario="8">
-      <span class="sim-nivel nivel-alto">ALTO</span>
-      <span class="sim-nombre">🤖 Botnet zombie (Emotet)</span>
-      <span class="sim-desc">Beacon C2 activo · PowerShell + wscript · tarea programada de persistencia</span>
-    </button>
-  </div>
-  <div class="sim-instruccion">Selecciona un escenario y pulsa cualquier botón de análisis para ver cómo reacciona ESTICC.</div>
-</div>
-
-<nav>
-  <button class="active" data-panel="defensas">Defensas</button>
-  <button data-panel="puertos">Puertos</button>
-  <button data-panel="procesos">Procesos</button>
-  <button data-panel="autoinicio">Autoinicio</button>
-  <button data-panel="parches">Parches</button>
-  <button data-panel="enciclopedia">📖 Enciclopedia</button>
-  <button data-panel="radar">📡 Radar OSINT</button>
-  <button data-panel="reportes">📋 Informe</button>
-  <button data-panel="historial">📅 Historial</button>
-</nav>
-
-<main>
-
-  <!-- Panel: Defensas -->
-  <div class="panel active" id="panel-defensas">
-    <div class="card">
-      <h2>Estado de las Defensas del Sistema</h2>
-      <button class="scan-btn" id="btn-defensas">Analizar ahora</button>
-      <div id="resultado-defensas" style="margin-top:16px;"></div>
+  <!-- Sidebar colapsable -->
+  <aside id="sidebar">
+    <div class="sidebar-top">
+      <button id="btn-sidebar-toggle" aria-label="Colapsar menú" title="Colapsar menú">◀</button>
     </div>
-  </div>
+    <button class="nav-item active" data-panel="defensas"><span class="nav-icon">🛡️</span><span class="nav-label" data-i18n="nav.defensas">Defensas</span></button>
+    <button class="nav-item" data-panel="puertos"><span class="nav-icon">🌐</span><span class="nav-label" data-i18n="nav.puertos">Puertos</span></button>
+    <button class="nav-item" data-panel="procesos"><span class="nav-icon">⚙️</span><span class="nav-label" data-i18n="nav.procesos">Procesos</span></button>
+    <button class="nav-item" data-panel="autoinicio"><span class="nav-icon">🚀</span><span class="nav-label" data-i18n="nav.autoinicio">Autoinicio</span></button>
+    <button class="nav-item" data-panel="parches"><span class="nav-icon">🔧</span><span class="nav-label" data-i18n="nav.parches">Parches</span></button>
+    <div class="nav-sep"></div>
+    <button class="nav-item" data-panel="enciclopedia"><span class="nav-icon">📖</span><span class="nav-label" data-i18n="nav.enciclopedia">Enciclopedia</span></button>
+    <button class="nav-item" data-panel="radar"><span class="nav-icon">📡</span><span class="nav-label" data-i18n="nav.radar">Radar OSINT</span></button>
+    <button class="nav-item" data-panel="reportes"><span class="nav-icon">📋</span><span class="nav-label" data-i18n="nav.reportes">Informe</span></button>
+    <button class="nav-item" data-panel="historial"><span class="nav-icon">📅</span><span class="nav-label" data-i18n="nav.historial">Historial</span></button>
+    <div class="nav-sep"></div>
+    <button class="nav-item" data-panel="configuracion"><span class="nav-icon">⚙️</span><span class="nav-label" data-i18n="nav.configuracion">Configuración</span></button>
+  </aside>
 
-  <!-- Panel: Puertos -->
-  <div class="panel" id="panel-puertos">
-    <div class="card">
-      <h2>Puertos TCP Abiertos</h2>
-      <button class="scan-btn" id="btn-puertos">Escanear puertos</button>
-      <div id="resultado-puertos"></div>
+  <!-- Área de contenido -->
+  <div id="content-area">
+
+    <div id="banner-recordatorio">
+      <span style="font-size:16px;">⏰</span>
+      <span id="banner-rec-msg"></span>
+      <button id="btn-banner-rec-analizar" data-i18n="bg.banner_cta">Analizar ahora</button>
+      <button id="btn-banner-rec-cerrar" data-i18n="bg.banner_cerrar">Ignorar</button>
     </div>
-  </div>
 
-  <!-- Panel: Procesos -->
-  <div class="panel" id="panel-procesos">
-    <div class="card">
-      <h2>Procesos Activos</h2>
-      <button class="scan-btn" id="btn-procesos">Escanear procesos</button>
-      <div id="resultado-procesos"></div>
+    <div id="banner-demo">
+      <span class="banner-icono">⚠️</span>
+      MODO DEMOSTRACIÓN ACTIVO — Los datos mostrados son ficticios con fines educativos
+      <button id="btn-salir-demo">✕ Salir del modo demo</button>
     </div>
-  </div>
 
-  <!-- Panel: Autoinicio -->
-  <div class="panel" id="panel-autoinicio">
-    <div class="card">
-      <h2>Programas de Autoinicio</h2>
-      <button class="scan-btn" id="btn-autoinicio">Analizar autoinicio</button>
-      <div id="resultado-autoinicio"></div>
-    </div>
-  </div>
-
-  <!-- Panel: Parches -->
-  <div class="panel" id="panel-parches">
-    <div class="card">
-      <h2>Actualizaciones del Sistema</h2>
-      <button class="scan-btn" id="btn-parches">Comprobar parches</button>
-      <div id="resultado-parches"></div>
-    </div>
-  </div>
-
-  <!-- Panel: Radar OSINT -->
-  <div class="panel" id="panel-radar">
-    <div class="card">
-      <h2>Radar de Amenazas OSINT</h2>
-      <div class="radar-toolbar">
-        <button class="scan-btn" id="btn-radar">Actualizar radar</button>
-        <span class="radar-meta">Monitoriza 6 fuentes · NIST NVD · Bleeping Computer · Krebs · SANS · The Hacker News · Reddit r/netsec</span>
-      </div>
-      <div id="resultado-radar"></div>
-    </div>
-  </div>
-
-  <!-- Panel: Informe de seguridad -->
-  <div class="panel" id="panel-reportes">
-    <div class="card">
-      <h2>Informe de Seguridad del Sistema</h2>
-      <p style="font-size:13px;color:var(--text-dim);margin:8px 0 16px;">
-        Ejecuta los 5 escáneres, calcula la puntuación de riesgo global y genera un informe
-        completo exportable a PDF. El análisis puede tardar hasta 30 segundos.
-      </p>
-      <div class="rep-toolbar">
-        <button class="scan-btn" id="btn-generar-informe">Generar informe completo</button>
-        <button class="scan-btn" id="btn-imprimir-informe" style="display:none;background:var(--surface);color:var(--accent);border:1px solid var(--accent);">
-          🖨️ Imprimir / Guardar PDF
+    <div id="panel-simulador">
+      <div class="sim-titulo">Selecciona un escenario de amenaza</div>
+      <div class="sim-escenarios">
+        <button class="sim-btn" data-escenario="1">
+          <span class="sim-nivel nivel-critico">CRÍTICO</span>
+          <span class="sim-nombre">🎭 RAT — Puerto 4444 abierto</span>
+          <span class="sim-desc">Troyano de acceso remoto con conexión ESTABLISHED a IP externa</span>
+        </button>
+        <button class="sim-btn" data-escenario="2">
+          <span class="sim-nivel nivel-critico">CRÍTICO</span>
+          <span class="sim-nombre">⛏️ Cryptojacker disfrazado</span>
+          <span class="sim-desc">svchost32.exe al 99% CPU — minero camuflado como proceso de sistema</span>
+        </button>
+        <button class="sim-btn" data-escenario="3">
+          <span class="sim-nivel nivel-alto">ALTO</span>
+          <span class="sim-nombre">🛡️ Sistema abandonado</span>
+          <span class="sim-desc">Defender + Firewall desactivados · 14 parches pendientes · 30 días sin analizar</span>
+        </button>
+        <button class="sim-btn" data-escenario="4">
+          <span class="sim-nivel nivel-critico">CRÍTICO</span>
+          <span class="sim-nombre">⌨️ Keylogger activo</span>
+          <span class="sim-desc">Agent Tesla exfiltrando contraseñas por SMTP (puertos 25/587)</span>
+        </button>
+        <button class="sim-btn" data-escenario="5">
+          <span class="sim-nivel nivel-critico">CRÍTICO</span>
+          <span class="sim-nombre">⛏️ XMRig — Minero de Monero</span>
+          <span class="sim-desc">xmrig.exe al 95% CPU conectado a pool stratum (puertos 3333/14444)</span>
+        </button>
+        <button class="sim-btn" data-escenario="6">
+          <span class="sim-nivel nivel-critico">CRÍTICO</span>
+          <span class="sim-nombre">🔒 Ransomware en curso</span>
+          <span class="sim-desc">Cifrado activo + eliminación de copias de seguridad + Defender caído</span>
+        </button>
+        <button class="sim-btn" data-escenario="7">
+          <span class="sim-nivel nivel-critico">CRÍTICO</span>
+          <span class="sim-nombre">🐛 Gusano de Red (EternalBlue)</span>
+          <span class="sim-desc">Propagación SMB activa · MS17-010 sin parchear · Firewall caído</span>
+        </button>
+        <button class="sim-btn" data-escenario="8">
+          <span class="sim-nivel nivel-alto">ALTO</span>
+          <span class="sim-nombre">🤖 Botnet zombie (Emotet)</span>
+          <span class="sim-desc">Beacon C2 activo · PowerShell + wscript · tarea programada de persistencia</span>
         </button>
       </div>
-      <div class="rep-progress" id="reporte-progress">
-        Ejecutando escáneres de auditoría…
-        <div class="rep-progress-pasos">
-          <span class="rep-paso" id="paso-0">🛡️ Defensas</span>
-          <span class="rep-paso" id="paso-1">🌐 Puertos</span>
-          <span class="rep-paso" id="paso-2">⚙️ Procesos</span>
-          <span class="rep-paso" id="paso-3">🚀 Autoinicio</span>
-          <span class="rep-paso" id="paso-4">🔧 Parches</span>
-        </div>
-      </div>
-      <div id="reporte-contenido"></div>
-    </div>
-  </div>
-
-  <!-- Panel: Historial de análisis -->
-  <div class="panel" id="panel-historial">
-    <div class="card">
-      <div class="hist-toolbar">
-        <h2>Historial de Análisis</h2>
-        <button class="scan-btn" id="btn-cargar-historial">Actualizar</button>
-      </div>
-      <div class="hist-leyenda">
-        <div class="hist-leyenda-item"><div class="hist-dot hist-dot-esticc"></div> Escaneo ESTICC</div>
-        <div class="hist-leyenda-item"><div class="hist-dot hist-dot-defender"></div> Análisis Defender</div>
-        <div class="hist-leyenda-item"><div class="hist-dot hist-dot-amenaza"></div> Amenaza detectada</div>
-      </div>
+      <div class="sim-instruccion">Selecciona un escenario y pulsa cualquier botón de análisis para ver cómo reacciona ESTICC.</div>
     </div>
 
-    <div class="card">
-      <div class="hist-nav">
-        <button id="hist-prev-mes">&#8249;</button>
-        <span class="hist-nav-mes" id="hist-nav-mes">—</span>
-        <button id="hist-next-mes">&#8250;</button>
-      </div>
-      <div class="hist-calendar" style="margin-top:12px;">
-        <div class="hist-cal-header">
-          <span>Lun</span><span>Mar</span><span>Mié</span>
-          <span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
+    <main>
+
+      <!-- Panel: Defensas -->
+      <div class="panel active" id="panel-defensas">
+        <div class="card">
+          <div class="card-header">
+            <h2 data-i18n="paneles.defensas_titulo">Estado de las Defensas del Sistema</h2>
+            <button class="scan-btn" id="btn-defensas" data-i18n="botones.analizar">Analizar ahora</button>
+          </div>
+          <div id="resultado-defensas"></div>
         </div>
-        <div class="hist-cal-grid" id="hist-cal-grid">
-          <p style="grid-column:1/-1;padding:20px;color:var(--text-dim);text-align:center;">
-            Pulsa "Actualizar" para cargar el historial.
+      </div>
+
+      <!-- Panel: Puertos -->
+      <div class="panel" id="panel-puertos">
+        <div class="card">
+          <div class="card-header">
+            <h2 data-i18n="paneles.puertos_titulo">Puertos TCP Abiertos</h2>
+            <button class="scan-btn" id="btn-puertos" data-i18n="botones.escanear_puertos">Escanear puertos</button>
+          </div>
+          <div id="resultado-puertos"></div>
+        </div>
+      </div>
+
+      <!-- Panel: Procesos -->
+      <div class="panel" id="panel-procesos">
+        <div class="card">
+          <div class="card-header">
+            <h2 data-i18n="paneles.procesos_titulo">Procesos Activos</h2>
+            <button class="scan-btn" id="btn-procesos" data-i18n="botones.escanear_procesos">Escanear procesos</button>
+          </div>
+          <div id="resultado-procesos"></div>
+        </div>
+      </div>
+
+      <!-- Panel: Autoinicio -->
+      <div class="panel" id="panel-autoinicio">
+        <div class="card">
+          <div class="card-header">
+            <h2 data-i18n="paneles.autoinicio_titulo">Programas de Autoinicio</h2>
+            <button class="scan-btn" id="btn-autoinicio" data-i18n="botones.analizar_autoinicio">Analizar autoinicio</button>
+          </div>
+          <div id="resultado-autoinicio"></div>
+        </div>
+      </div>
+
+      <!-- Panel: Parches -->
+      <div class="panel" id="panel-parches">
+        <div class="card">
+          <div class="card-header">
+            <h2 data-i18n="paneles.parches_titulo">Actualizaciones del Sistema</h2>
+            <button class="scan-btn" id="btn-parches" data-i18n="botones.comprobar_parches">Comprobar parches</button>
+          </div>
+          <div id="resultado-parches"></div>
+        </div>
+      </div>
+
+      <!-- Panel: Radar OSINT -->
+      <div class="panel" id="panel-radar">
+        <div class="card">
+          <div class="card-header">
+            <h2 data-i18n="paneles.radar_titulo">Radar de Amenazas OSINT</h2>
+            <button class="scan-btn" id="btn-radar" data-i18n="botones.actualizar_radar">Actualizar radar</button>
+          </div>
+          <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px;" data-i18n="paneles.radar_fuentes">
+            Monitoriza 6 fuentes · NIST NVD · Bleeping Computer · Krebs · SANS · The Hacker News · Reddit r/netsec
           </p>
+          <div id="resultado-radar"></div>
         </div>
       </div>
-    </div>
 
-    <div class="hist-detalle card" id="hist-detalle">
-      <div class="hist-detalle-vacio">Haz clic en un día con actividad para ver los detalles.</div>
-    </div>
-
-    <div class="hist-resumen" id="hist-resumen"></div>
-  </div>
-
-  <!-- Panel: Enciclopedia -->
-  <div class="panel" id="panel-enciclopedia">
-    <div class="card">
-      <h2>Enciclopedia de Malware</h2>
-      <div class="enc-buscador-wrap">
-        <input type="text" id="enc-buscar" placeholder="Buscar por nombre, síntoma, vector de ataque…" autocomplete="off" />
+      <!-- Panel: Informe de seguridad -->
+      <div class="panel" id="panel-reportes">
+        <div class="card">
+          <div class="card-header">
+            <h2 data-i18n="paneles.reportes_titulo">Informe de Seguridad del Sistema</h2>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button class="scan-btn" id="btn-generar-informe" data-i18n="botones.generar_informe">Generar informe completo</button>
+              <button class="scan-btn scan-btn-secondary" id="btn-imprimir-informe" style="display:none;" data-i18n="botones.guardar_pdf">
+                🖨️ Guardar PDF
+              </button>
+            </div>
+          </div>
+          <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px;" data-i18n="paneles.reportes_desc">
+            Ejecuta los 5 escáneres, calcula la puntuación de riesgo global y genera un informe completo exportable a PDF.
+            El análisis puede tardar hasta 30 segundos.
+          </p>
+          <div class="rep-progress" id="reporte-progress">
+            Ejecutando escáneres de auditoría…
+            <div class="rep-progress-pasos">
+              <span class="rep-paso" id="paso-0">🛡️ Defensas</span>
+              <span class="rep-paso" id="paso-1">🌐 Puertos</span>
+              <span class="rep-paso" id="paso-2">⚙️ Procesos</span>
+              <span class="rep-paso" id="paso-3">🚀 Autoinicio</span>
+              <span class="rep-paso" id="paso-4">🔧 Parches</span>
+            </div>
+          </div>
+          <div id="reporte-contenido"></div>
+        </div>
       </div>
-      <div id="enc-chips" class="enc-chips"></div>
-      <div id="enc-grid" class="enc-grid"></div>
-    </div>
-  </div>
 
-</main>
+      <!-- Panel: Historial de análisis -->
+      <div class="panel" id="panel-historial">
+        <div class="card">
+          <div class="hist-toolbar">
+            <h2 data-i18n="paneles.historial_titulo">Historial de Análisis</h2>
+            <button class="scan-btn" id="btn-cargar-historial" data-i18n="botones.actualizar_hist">Actualizar</button>
+          </div>
+          <div class="hist-leyenda">
+            <div class="hist-leyenda-item"><div class="hist-dot hist-dot-esticc"></div> Escaneo ESTICC</div>
+            <div class="hist-leyenda-item"><div class="hist-dot hist-dot-defender"></div> Análisis Defender</div>
+            <div class="hist-leyenda-item"><div class="hist-dot hist-dot-amenaza"></div> Amenaza detectada</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="hist-nav">
+            <button id="hist-prev-mes">&#8249;</button>
+            <span class="hist-nav-mes" id="hist-nav-mes">—</span>
+            <button id="hist-next-mes">&#8250;</button>
+          </div>
+          <div class="hist-calendar" style="margin-top:12px;">
+            <div class="hist-cal-header">
+              <span>Lun</span><span>Mar</span><span>Mié</span>
+              <span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
+            </div>
+            <div class="hist-cal-grid" id="hist-cal-grid">
+              <p style="grid-column:1/-1;padding:20px;color:var(--text-dim);text-align:center;">
+                Pulsa "Actualizar" para cargar el historial.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="hist-detalle card" id="hist-detalle">
+          <div class="hist-detalle-vacio">Haz clic en un día con actividad para ver los detalles.</div>
+        </div>
+
+        <div class="hist-resumen" id="hist-resumen"></div>
+      </div>
+
+      <!-- Panel: Enciclopedia -->
+      <div class="panel" id="panel-enciclopedia">
+        <div class="card">
+          <div class="card-header">
+            <h2 data-i18n="paneles.enciclopedia_titulo">Enciclopedia de Malware</h2>
+          </div>
+          <div class="enc-buscador-wrap">
+            <input type="text" id="enc-buscar" placeholder="Buscar por nombre, síntoma, vector de ataque…" autocomplete="off" />
+          </div>
+          <div id="enc-chips" class="enc-chips"></div>
+          <div id="enc-grid" class="enc-grid"></div>
+        </div>
+      </div>
+
+      <!-- Panel: Configuración -->
+      <div class="panel" id="panel-configuracion">
+        <div class="card">
+          <div class="card-header">
+            <h2 data-i18n="config.titulo">Configuración</h2>
+          </div>
+
+          <!-- Perfil de usuario -->
+          <div class="cfg-section">
+            <div class="cfg-section-titulo" data-i18n="config.perfil_titulo">Perfil de Usuario</div>
+            <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px;" data-i18n="config.perfil_desc">
+              Personaliza la experiencia según tu nivel de conocimientos técnicos.
+            </p>
+            <div class="cfg-rol-grid cfg-btn-group" id="cfg-rol-group">
+              <button class="cfg-rol-card cfg-btn-group-item" data-valor="estudiante">
+                <div class="cfg-rol-nombre" data-i18n="config.rol_estudiante">Estudiante</div>
+                <div class="cfg-rol-desc" data-i18n="config.rol_est_desc">Explicaciones educativas, modo básico por defecto</div>
+              </button>
+              <button class="cfg-rol-card cfg-btn-group-item" data-valor="persona_mayor">
+                <div class="cfg-rol-nombre" data-i18n="config.rol_mayor">Persona Mayor</div>
+                <div class="cfg-rol-desc" data-i18n="config.rol_mayor_desc">Tipografía más grande, lenguaje simplificado</div>
+              </button>
+              <button class="cfg-rol-card cfg-btn-group-item" data-valor="pyme">
+                <div class="cfg-rol-nombre" data-i18n="config.rol_pyme">Pequeña PYME</div>
+                <div class="cfg-rol-desc" data-i18n="config.rol_pyme_desc">Contexto empresarial, recomendaciones de seguridad</div>
+              </button>
+              <button class="cfg-rol-card cfg-btn-group-item" data-valor="pyme_med">
+                <div class="cfg-rol-nombre" data-i18n="config.rol_pyme_med">Mediana PYME</div>
+                <div class="cfg-rol-desc" data-i18n="config.rol_pyme_med_desc">Análisis detallado para entornos corporativos</div>
+              </button>
+              <button class="cfg-rol-card cfg-btn-group-item" data-valor="administrador">
+                <div class="cfg-rol-nombre" data-i18n="config.rol_admin">Administrador</div>
+                <div class="cfg-rol-desc" data-i18n="config.rol_admin_desc">Modo avanzado automático, datos técnicos completos</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Interfaz y aspecto -->
+          <div class="cfg-section">
+            <div class="cfg-section-titulo" data-i18n="config.interfaz_titulo">Interfaz y Aspecto Visual</div>
+
+            <div class="cfg-field">
+              <div class="cfg-label" data-i18n="config.tema_label">Tema visual</div>
+              <div class="cfg-btn-group" id="cfg-tema-group">
+                <button class="cfg-btn-group-item" data-valor="oscuro" data-i18n="config.tema_oscuro">🌙 Oscuro</button>
+                <button class="cfg-btn-group-item" data-valor="claro" data-i18n="config.tema_claro">☀️ Claro</button>
+              </div>
+            </div>
+
+            <div class="cfg-field">
+              <div class="cfg-label" data-i18n="config.idioma_label">Idioma</div>
+              <div class="cfg-btn-group" id="cfg-idioma-group">
+                <button class="cfg-btn-group-item" data-valor="es">🇪🇸 Español</button>
+                <button class="cfg-btn-group-item" data-valor="en">🇬🇧 English</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sistema y exportación -->
+          <div class="cfg-section">
+            <div class="cfg-section-titulo" data-i18n="config.sistema_titulo">Sistema y Exportación</div>
+
+            <div class="cfg-field">
+              <label class="cfg-toggle-wrap">
+                <input type="checkbox" id="cfg-autoscan" />
+                <div>
+                  <div class="cfg-label" data-i18n="config.autoscan_label">Analizar automáticamente al abrir la aplicación</div>
+                  <div class="cfg-label-desc" data-i18n="config.autoscan_desc">Ejecuta los 5 escáneres al iniciar sin necesidad de pulsar ningún botón</div>
+                </div>
+              </label>
+            </div>
+
+            <div class="cfg-field">
+              <div class="cfg-label" data-i18n="config.recordatorio_label">Recordatorio si no analizo en</div>
+              <select id="cfg-recordatorio" class="cfg-input" style="max-width:160px;font-family:inherit;">
+                <option value="nunca"  data-i18n="config.rec_nunca">Nunca</option>
+                <option value="1"      data-i18n="config.rec_1d">1 día</option>
+                <option value="3"      data-i18n="config.rec_3d">3 días</option>
+                <option value="7"      data-i18n="config.rec_7d">7 días</option>
+                <option value="14"     data-i18n="config.rec_14d">14 días</option>
+                <option value="30"     data-i18n="config.rec_30d">30 días</option>
+              </select>
+            </div>
+
+            <div class="cfg-field">
+              <label class="cfg-toggle-wrap">
+                <input type="checkbox" id="cfg-historial" />
+                <span class="cfg-label" data-i18n="config.historial_label">Guardar historial local de análisis</span>
+              </label>
+            </div>
+
+            <div class="cfg-field" style="flex-direction:column;align-items:flex-start;gap:6px;">
+              <div class="cfg-label" data-i18n="config.ruta_label">Ruta de exportación por defecto</div>
+              <input class="cfg-input" type="text" id="cfg-ruta"
+                data-i18n-placeholder="config.ruta_placeholder"
+                placeholder="Ej: C:\Users\Usuario\Escritorio" />
+            </div>
+
+            <div class="cfg-field">
+              <div class="cfg-label" data-i18n="config.muestreo_label">Tiempo de muestreo al analizar</div>
+              <div class="cfg-btn-group" id="cfg-muestreo-group">
+                <button class="cfg-btn-group-item" data-valor="rapido" data-i18n="config.muestreo_rapido">⚡ Rápido (2s)</button>
+                <button class="cfg-btn-group-item" data-valor="balanceado" data-i18n="config.muestreo_balanceado">⚖️ Balanceado (3s)</button>
+                <button class="cfg-btn-group-item" data-valor="preciso" data-i18n="config.muestreo_preciso">🔬 Preciso (5s)</button>
+              </div>
+            </div>
+
+            <div class="cfg-nota" data-i18n="config.enc_note">
+              La Enciclopedia de Malware está disponible solo en español en esta versión.
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="cfg-footer">
+            <button class="scan-btn" id="cfg-guardar-btn" data-i18n="config.guardar_btn">Guardar cambios</button>
+            <span id="cfg-guardado-msg" data-i18n="config.guardado">Configuración guardada</span>
+          </div>
+
+        </div>
+      </div>
+
+    </main>
+  </div><!-- #content-area -->
+</div><!-- .app-layout -->
 
 <!-- Modal de detalle de amenaza -->
 <div id="enc-modal-overlay">
@@ -520,8 +919,6 @@
         <h3>Herramienta recomendada</h3>
         <div class="enc-herramienta-modal" id="enc-modal-herramienta"></div>
       </div>
-
-      <!-- Sección técnica: siempre visible en el modal -->
       <div class="enc-modal-seccion">
         <div class="enc-modal-tecnico-header">⚙️ Información técnica</div>
         <h3>MITRE ATT&amp;CK</h3>
@@ -537,13 +934,31 @@
   </div>
 </div>
 
-<div id="loading">Analizando...</div>
+<!-- Toast container (reemplaza #loading) -->
+<div id="toast-container"></div>
 
 <script src="js/simulador.js"></script>
 <script src="js/enciclopedia.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/config.js"></script>
+<script src="js/background.js"></script>
 <script src="js/auditoria.js"></script>
 <script src="js/radar.js"></script>
 <script src="js/reportes.js"></script>
 <script src="js/historial.js"></script>
+
+<script>
+  // Sidebar toggle
+  (function () {
+    const sidebar = document.getElementById('sidebar');
+    const btn     = document.getElementById('btn-sidebar-toggle');
+    if (!sidebar || !btn) return;
+    btn.addEventListener('click', () => {
+      sidebar.classList.toggle('collapsed');
+      btn.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+      btn.title       = sidebar.classList.contains('collapsed') ? 'Expandir menú' : 'Colapsar menú';
+    });
+  })();
+</script>
 </body>
 </html>
