@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="css/reportes.css" />
   <link rel="stylesheet" href="css/historial.css" />
   <link rel="stylesheet" href="css/config.css" />
+  <link rel="stylesheet" href="css/hardware.css" />
   <style>
     :root {
       --bg: #0d1117;
@@ -536,6 +537,7 @@
     <button class="nav-item" data-panel="radar"><span class="nav-icon">📡</span><span class="nav-label" data-i18n="nav.radar">Radar OSINT</span></button>
     <button class="nav-item" data-panel="reportes"><span class="nav-icon">📋</span><span class="nav-label" data-i18n="nav.reportes">Informe</span></button>
     <button class="nav-item" data-panel="historial"><span class="nav-icon">📅</span><span class="nav-label" data-i18n="nav.historial">Historial</span></button>
+    <button class="nav-item" data-panel="hardware"><span class="nav-icon">💻</span><span class="nav-label" data-i18n="nav.hardware">Hardware</span></button>
     <div class="nav-sep"></div>
     <button class="nav-item" data-panel="configuracion"><span class="nav-icon">⚙️</span><span class="nav-label" data-i18n="nav.configuracion">Configuración</span></button>
   </aside>
@@ -758,6 +760,124 @@
         </div>
       </div>
 
+      <!-- Panel: Hardware Monitor -->
+      <div class="panel" id="panel-hardware">
+
+        <!-- Encabezado con título y botón de escaneo -->
+        <div id="hw-header">
+          <h2 data-i18n="paneles.hardware_titulo">Monitor de Hardware</h2>
+          <button class="btn-primary" id="btn-hardware" data-i18n="hardware.btn_escanear">Escanear hardware</button>
+        </div>
+
+        <!-- Tarjeta CPU -->
+        <div class="hw-card" id="hw-card-cpu">
+          <p class="hw-card-titulo" data-i18n="hardware.cpu_titulo">Procesador (CPU)</p>
+          <div class="hw-card-body">
+            <!-- Gauge circular SVG: radio=40, viewBox centrado en 50,50 -->
+            <div class="hw-gauge-wrap" id="hw-gauge-cpu">
+              <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <!-- Pista de fondo: círculo completo sin relleno -->
+                <circle class="hw-gauge-track" cx="50" cy="50" r="40" />
+                <!-- Arco de relleno: stroke-dasharray/offset actualizados por JS -->
+                <circle class="hw-gauge-circle" cx="50" cy="50" r="40" />
+              </svg>
+              <div class="hw-gauge-pct">0%</div>
+            </div>
+            <!-- Metadatos de CPU (parcialmente ocultos en modo básico via CSS) -->
+            <div class="hw-meta-list">
+              <span class="hw-meta-label" data-i18n="hardware.uso">Uso</span>
+              <span class="hw-meta-value" id="hw-cpu-uso">—</span>
+              <span class="hw-meta-label modo-avanzado-only" data-i18n="hardware.modelo">Modelo</span>
+              <span class="hw-meta-value modo-avanzado-only" id="hw-cpu-modelo">—</span>
+              <span class="hw-meta-label modo-avanzado-only" data-i18n="hardware.nucleos_fis">Núcleos físicos</span>
+              <span class="hw-meta-value modo-avanzado-only" id="hw-cpu-nucleos-fis">—</span>
+              <span class="hw-meta-label modo-avanzado-only" data-i18n="hardware.nucleos_log">Núcleos lógicos</span>
+              <span class="hw-meta-value modo-avanzado-only" id="hw-cpu-nucleos-log">—</span>
+              <span class="hw-meta-label modo-avanzado-only" data-i18n="hardware.frecuencia">Frecuencia</span>
+              <span class="hw-meta-value modo-avanzado-only" id="hw-cpu-freq">—</span>
+              <span class="hw-meta-label modo-avanzado-only" data-i18n="hardware.temperatura">Temperatura</span>
+              <span class="hw-meta-value modo-avanzado-only" id="hw-cpu-temp">—</span>
+            </div>
+          </div>
+          <!-- Mini-gráfica de historial de CPU (últimas 30 muestras) -->
+          <div class="hw-chart" id="hw-chart-cpu" title="Historial CPU">
+            <svg viewBox="0 0 300 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"></svg>
+          </div>
+        </div>
+
+        <!-- Tarjeta RAM -->
+        <div class="hw-card" id="hw-card-ram">
+          <p class="hw-card-titulo" data-i18n="hardware.ram_titulo">Memoria RAM</p>
+          <div class="hw-card-body">
+            <div class="hw-gauge-wrap" id="hw-gauge-ram">
+              <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <circle class="hw-gauge-track" cx="50" cy="50" r="40" />
+                <circle class="hw-gauge-circle" cx="50" cy="50" r="40" />
+              </svg>
+              <div class="hw-gauge-pct">0%</div>
+            </div>
+            <div class="hw-meta-list">
+              <span class="hw-meta-label" data-i18n="hardware.total">Total</span>
+              <span class="hw-meta-value" id="hw-ram-total">—</span>
+              <span class="hw-meta-label" data-i18n="hardware.disponible">Disponible</span>
+              <span class="hw-meta-value" id="hw-ram-disponible">—</span>
+              <span class="hw-meta-label modo-avanzado-only" data-i18n="hardware.velocidad_ram">Velocidad</span>
+              <span class="hw-meta-value modo-avanzado-only" id="hw-ram-vel">—</span>
+            </div>
+          </div>
+          <div class="hw-chart" id="hw-chart-ram" title="Historial RAM">
+            <svg viewBox="0 0 300 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"></svg>
+          </div>
+        </div>
+
+        <!-- Tarjeta Disco -->
+        <div class="hw-card" id="hw-card-disco">
+          <p class="hw-card-titulo" data-i18n="hardware.disco_titulo">Almacenamiento</p>
+          <!-- Velocidades de I/O globales -->
+          <div class="hw-meta-list" style="margin-bottom:8px">
+            <span class="hw-meta-label" data-i18n="hardware.lectura">Lectura</span>
+            <span class="hw-meta-value" id="hw-disco-lectura">—</span>
+            <span class="hw-meta-label" data-i18n="hardware.escritura">Escritura</span>
+            <span class="hw-meta-value" id="hw-disco-escritura">—</span>
+          </div>
+          <!-- Lista de particiones (rellenada dinámicamente por hardware.js) -->
+          <div id="hw-disco-particiones"></div>
+        </div>
+
+        <!-- Tarjeta Batería -->
+        <div class="hw-card" id="hw-card-bateria">
+          <p class="hw-card-titulo" data-i18n="hardware.bateria_titulo">Batería</p>
+          <!-- Contenido rellenado dinámicamente por renderBateria() -->
+          <div id="hw-bat-body">
+            <span class="hw-bat-ausente" data-i18n="hardware.bat_ausente">Sin batería detectada</span>
+          </div>
+        </div>
+
+        <!-- Tarjeta Eventos del Event Log (ocupa toda la fila) -->
+        <div class="hw-card" id="hw-card-eventos">
+          <p class="hw-card-titulo" data-i18n="hardware.eventos_titulo">Eventos de Hardware</p>
+          <ul class="hw-eventos-lista" id="hw-eventos-lista">
+            <li class="hw-sin-eventos" data-i18n="hardware.sin_eventos">Sin eventos críticos recientes</li>
+          </ul>
+        </div>
+
+        <!-- Tabla de especificaciones (visible solo en modo avanzado) -->
+        <div id="hw-specs-wrap">
+          <div class="hw-card">
+            <p class="hw-card-titulo" data-i18n="hardware.specs_titulo">Especificaciones del Sistema</p>
+            <table class="hw-specs-table">
+              <tbody id="hw-specs-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Footer con timestamp del último escaneo -->
+        <div style="grid-column:1/-1; font-size:0.75rem; color:var(--text-dim); padding:4px 0;">
+          <span id="hw-timestamp"></span>
+        </div>
+
+      </div><!-- /panel-hardware -->
+
       <!-- Panel: Configuración -->
       <div class="panel" id="panel-configuracion">
         <div class="card">
@@ -946,6 +1066,7 @@
 <script src="js/radar.js"></script>
 <script src="js/reportes.js"></script>
 <script src="js/historial.js"></script>
+<script src="js/hardware.js"></script>
 
 <script>
   // Sidebar toggle

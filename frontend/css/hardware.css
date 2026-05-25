@@ -1,0 +1,421 @@
+/**
+ * hardware.css — Estilos del panel Monitor de Hardware de ESTICC.
+ *
+ * Organización:
+ *  1. Grid principal de tarjetas (#panel-hardware)
+ *  2. Tarjeta de métrica genérica (.hw-card)
+ *  3. Gauge circular SVG (.hw-gauge-wrap, .hw-gauge-circle)
+ *  4. Gráfica de línea histórica (.hw-chart)
+ *  5. Tabla de especificaciones (modo avanzado, .hw-specs-table)
+ *  6. Tarjeta de batería (.hw-bat-*)
+ *  7. Tarjeta de eventos (.hw-evento)
+ *  8. Overrides tema claro
+ */
+
+/* ── 1. Grid principal ──────────────────────────────────────────────────── */
+
+/* El panel usa un grid de dos columnas en pantallas anchas y una en móvil.   */
+/* Las tarjetas de CPU y RAM ocupan cada una media fila; disco y batería ídem. */
+#panel-hardware {
+  display: grid;                                /* Layout en cuadrícula      */
+  grid-template-columns: repeat(2, 1fr);        /* Dos columnas de igual ancho */
+  gap: 16px;                                    /* Separación entre tarjetas  */
+  padding: 16px;                                /* Margen interior del panel  */
+}
+
+/* En pantallas pequeñas (< 720 px), apilar todo en una columna */
+@media (max-width: 720px) {
+  #panel-hardware {
+    grid-template-columns: 1fr;                 /* Una columna única en móvil  */
+  }
+}
+
+/* La tarjeta de eventos ocupa ambas columnas (ancho completo del grid) */
+#hw-card-eventos {
+  grid-column: 1 / -1;                         /* Span completo de columnas   */
+}
+
+/* El encabezado del panel (título + botón de escaneo) ocupa toda la fila */
+#hw-header {
+  grid-column: 1 / -1;                         /* Fila completa               */
+  display: flex;                                /* Alinear título y botón      */
+  align-items: center;                          /* Centrar verticalmente       */
+  gap: 12px;                                    /* Espacio entre título y botón */
+  margin-bottom: 4px;                           /* Separación visual del grid  */
+}
+
+#hw-header h2 {
+  flex: 1;                                      /* El título toma todo el espacio disponible */
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--text);
+}
+
+/* ── 2. Tarjeta de métrica genérica ─────────────────────────────────────── */
+
+.hw-card {
+  background: var(--surface);                   /* Fondo de superficie (varía con el tema) */
+  border: 1px solid var(--border, rgba(255,255,255,.08));  /* Borde sutil    */
+  border-radius: 10px;                          /* Esquinas redondeadas       */
+  padding: 16px;                                /* Espaciado interno          */
+  display: flex;                                /* Flexbox para organizar contenido */
+  flex-direction: column;                       /* Apilar verticalmente        */
+  gap: 12px;                                    /* Separación entre secciones  */
+  min-height: 180px;                            /* Altura mínima uniforme      */
+}
+
+.hw-card-titulo {
+  font-size: 0.78rem;                           /* Texto pequeño para el encabezado */
+  font-weight: 600;
+  text-transform: uppercase;                    /* Todo en mayúsculas           */
+  letter-spacing: .06em;                        /* Espaciado de letras          */
+  color: var(--text-dim);                       /* Color atenuado para no competir con datos */
+  margin: 0;
+}
+
+/* Contenedor de la gauge + datos inline (CPU y RAM) */
+.hw-card-body {
+  display: flex;                                /* Gauge a la izquierda, datos a la derecha */
+  align-items: center;
+  gap: 16px;
+  flex: 1;                                      /* Ocupa el espacio restante de la tarjeta */
+}
+
+/* Lista de metadatos junto a la gauge (modelo, núcleos, frecuencia, etc.) */
+.hw-meta-list {
+  display: grid;
+  grid-template-columns: auto 1fr;             /* Etiqueta | Valor             */
+  gap: 3px 10px;                               /* Espacio vertical/horizontal  */
+  font-size: 0.78rem;
+  flex: 1;
+  align-content: start;
+}
+
+.hw-meta-label {
+  color: var(--text-dim);                      /* Etiqueta atenuada            */
+  white-space: nowrap;                          /* No partir la etiqueta        */
+}
+
+.hw-meta-value {
+  color: var(--text);
+  font-weight: 500;
+  word-break: break-word;                       /* Partir modelos de CPU largos  */
+}
+
+/* ── 3. Gauge circular SVG ──────────────────────────────────────────────── */
+
+/* Contenedor que centra la gauge y la etiqueta de porcentaje */
+.hw-gauge-wrap {
+  position: relative;                          /* Para el texto centrado absoluto */
+  width: 90px;                                 /* Tamaño fijo del gauge           */
+  height: 90px;
+  flex-shrink: 0;                              /* No encoger cuando hay poco espacio */
+}
+
+.hw-gauge-wrap svg {
+  width: 90px;
+  height: 90px;
+  transform: rotate(-90deg);                   /* Empezar el arco desde arriba (12h) */
+}
+
+/* Pista de fondo del gauge (círculo gris) */
+.hw-gauge-track {
+  fill: none;
+  stroke: var(--border, rgba(255,255,255,.1)); /* Color del fondo del arco      */
+  stroke-width: 8;                             /* Grosor del arco               */
+}
+
+/* Arco de relleno del gauge (coloreado según el porcentaje) */
+.hw-gauge-circle {
+  fill: none;
+  stroke: var(--accent);                       /* Color principal (azul por defecto) */
+  stroke-width: 8;
+  stroke-linecap: round;                       /* Extremos redondeados del arco  */
+  /* stroke-dasharray y stroke-dashoffset se calculan dinámicamente en hardware.js */
+  transition: stroke-dashoffset .6s ease, stroke .4s ease;  /* Animación suave */
+}
+
+/* Color del arco según el nivel de uso: amarillo al 70 %, rojo al 90 % */
+.hw-gauge-circle.warn  { stroke: var(--warn,   #e3a008); }   /* 70–89 %  */
+.hw-gauge-circle.hot   { stroke: var(--danger, #e34c4c); }   /* ≥ 90 %   */
+
+/* Texto con el porcentaje superpuesto en el centro del SVG */
+.hw-gauge-pct {
+  position: absolute;
+  inset: 0;                                    /* Ocupa todo el contenedor      */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  pointer-events: none;                        /* No interceptar clics          */
+}
+
+/* ── 4. Gráfica de línea histórica ─────────────────────────────────────── */
+
+/* Contenedor del SVG de la minigráfica */
+.hw-chart {
+  width: 100%;
+  height: 40px;                                /* Altura fija de la minigráfica  */
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.hw-chart svg {
+  width: 100%;
+  height: 40px;
+  display: block;
+}
+
+/* Área de relleno bajo la línea */
+.hw-chart-area {
+  fill: var(--accent);
+  opacity: .18;                                /* Relleno semitransparente      */
+}
+
+/* Línea de la gráfica */
+.hw-chart-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+/* ── 5. Tabla de especificaciones (modo avanzado) ───────────────────────── */
+
+/* El wrapper solo es visible cuando body tiene la clase modo-avanzado */
+#hw-specs-wrap {
+  display: none;                               /* Oculto en modo básico         */
+  grid-column: 1 / -1;                        /* Ocupa todo el ancho del grid   */
+}
+
+body.modo-avanzado #hw-specs-wrap {
+  display: block;                              /* Visible en modo avanzado       */
+}
+
+.hw-specs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.hw-specs-table th,
+.hw-specs-table td {
+  padding: 6px 10px;
+  border: 1px solid var(--border, rgba(255,255,255,.08));
+  text-align: left;
+}
+
+.hw-specs-table th {
+  background: var(--surface);
+  color: var(--text-dim);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.hw-specs-table tr:nth-child(even) td {
+  background: rgba(255,255,255,.02);          /* Filas alternadas más oscuras   */
+}
+
+/* ── 6. Tarjeta de batería ──────────────────────────────────────────────── */
+
+/* Barra de progreso de batería */
+.hw-bat-bar-wrap {
+  width: 100%;
+  height: 10px;
+  background: var(--border, rgba(255,255,255,.1));
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.hw-bat-bar {
+  height: 100%;
+  border-radius: 5px;
+  background: var(--ok, #3fb950);             /* Verde: batería OK             */
+  transition: width .5s ease, background .4s ease;
+}
+
+.hw-bat-bar.warn  { background: var(--warn,   #e3a008); }   /* < 30 %: naranja */
+.hw-bat-bar.low   { background: var(--danger, #e34c4c); }   /* < 15 %: rojo    */
+
+/* Fila de estado: icono de carga + porcentaje + tiempo restante */
+.hw-bat-estado {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+}
+
+.hw-bat-pct {
+  font-size: 1.6rem;                           /* Porcentaje grande y prominente */
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+
+/* Icono de rayo (cargando) o de batería (descargando) */
+.hw-bat-icono {
+  font-size: 1.2rem;
+}
+
+/* Mensaje cuando no hay batería (desktop) */
+.hw-bat-ausente {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+/* ── 7. Tarjeta de eventos del Event Log ───────────────────────────────── */
+
+/* Lista de eventos (ul sin bullets) */
+.hw-eventos-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hw-evento {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(255,255,255,.03);
+  border-left: 3px solid var(--warn, #e3a008);  /* Borde izquierdo de aviso    */
+  font-size: 0.78rem;
+}
+
+/* Evento de reinicio inesperado: borde rojo más alarmante */
+.hw-evento.reinicio_inesperado {
+  border-left-color: var(--danger, #e34c4c);
+}
+
+.hw-evento-tipo {
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--warn, #e3a008);
+}
+
+.hw-evento.reinicio_inesperado .hw-evento-tipo {
+  color: var(--danger, #e34c4c);
+}
+
+.hw-evento-ts {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  margin-top: 2px;
+}
+
+.hw-evento-msg {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 480px;                             /* No dejar que el mensaje sea demasiado largo */
+}
+
+/* Mensaje cuando no hay eventos */
+.hw-sin-eventos {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-style: italic;
+  padding: 6px 0;
+}
+
+/* ── 8. Overrides para tema claro ───────────────────────────────────────── */
+
+body.tema-claro .hw-card {
+  border-color: rgba(0, 0, 0, .1);             /* Borde más oscuro en claro    */
+}
+
+body.tema-claro .hw-gauge-track {
+  stroke: rgba(0, 0, 0, .1);
+}
+
+body.tema-claro .hw-evento {
+  background: rgba(0, 0, 0, .03);
+}
+
+body.tema-claro .hw-specs-table tr:nth-child(even) td {
+  background: rgba(0, 0, 0, .025);
+}
+
+body.tema-claro .hw-bat-bar-wrap {
+  background: rgba(0, 0, 0, .1);
+}
+
+/* ── 9. Disco: filas de partición ───────────────────────────────────────── */
+
+/* Cada partición aparece en su propia fila: nombre | barra de uso | cifras */
+.hw-disco-fila {
+  display: grid;
+  grid-template-columns: 60px 1fr auto;           /* Letra de unidad | barra | texto */
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+}
+
+.hw-disco-unidad {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* Contenedor de la barra de uso de cada partición */
+.hw-disco-bar-wrap {
+  height: 8px;
+  background: var(--border, rgba(255,255,255,.1));
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* Barra de uso de partición: coloreada según el nivel de ocupación */
+.hw-disco-bar {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--ok, #3fb950);               /* Verde: uso normal           */
+  transition: width .5s ease, background .4s ease;
+}
+
+.hw-disco-bar.warn   { background: var(--warn,   #e3a008); }  /* > 80 %: naranja */
+.hw-disco-bar.danger { background: var(--danger, #e34c4c); }  /* > 90 %: rojo    */
+
+.hw-disco-info {
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* Etiqueta de tipo de disco (HDD/SSD) junto a la info de espacio */
+.hw-disco-tipo {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: rgba(255,255,255,.06);
+  color: var(--text-dim);
+}
+
+/* ── 10. Modo avanzado: mostrar/ocultar metadatos extra ─────────────────── */
+
+/* Los elementos con esta clase solo son visibles cuando body.modo-avanzado está activo */
+.modo-avanzado-only {
+  display: none;                                  /* Oculto en modo básico       */
+}
+
+body.modo-avanzado .modo-avanzado-only {
+  display: revert;                                /* Restaurar display heredado en modo avanzado */
+}
+
+/* Colores de temperatura en las etiquetas de la tarjeta CPU */
+.hw-temp-ok   { color: var(--ok,     #3fb950); }  /* Verde: temperatura normal   */
+.hw-temp-warn { color: var(--warn,   #e3a008); }  /* Naranja: temperatura elevada */
+.hw-temp-hot  { color: var(--danger, #e34c4c); }  /* Rojo: temperatura crítica   */

@@ -489,4 +489,8 @@ window.escanearTodo = async function () {
   await escanear('scan_processes','btn-procesos',  'resultado-procesos',  renderProcesos);   // 3. Procesos activos (CPU/RAM)
   await escanear('scan_startup',  'btn-autoinicio','resultado-autoinicio', renderAutoinicio); // 4. Registro Run/RunOnce + tareas
   await escanear('scan_patches',  'btn-parches',   'resultado-parches',   renderParches);    // 5. Actualizaciones pendientes
+  // 6. Hardware: llamar a hardware.js si ya está cargado (se carga después en el HTML)
+  if (typeof window.ESTICC_HW?.escanear === 'function') {
+    await window.ESTICC_HW.escanear();  // Métricas de CPU, RAM, disco, batería y Event Log
+  }
 };

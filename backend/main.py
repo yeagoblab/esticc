@@ -33,6 +33,9 @@ from modulo_04_reportes import generador  # Ejecuta los 5 escáneres + puntuaci�
 # Importamos los módulos del historial de análisis
 from modulo_05_historial import historial_defender, historial_esticc
 
+# Importamos el módulo de monitorización de hardware (CPU, RAM, disco, batería, eventos)
+from modulo_06_hardware import escaner_hardware
+
 # Diccionario acción → función: permite despachar sin if/elif explícitos
 # Las acciones simples no necesitan datos extra del request
 ACCIONES_SIMPLES: dict[str, callable] = {
@@ -48,7 +51,11 @@ ACCIONES_SIMPLES: dict[str, callable] = {
 }
 
 # Conjunto de todas las acciones válidas, incluyendo las que tienen lógica especial
-ACCIONES_CONOCIDAS: set[str] = set(ACCIONES_SIMPLES) | {"radar_correlate", "historial_esticc_guardar"}
+ACCIONES_CONOCIDAS: set[str] = set(ACCIONES_SIMPLES) | {
+    "radar_correlate",         # Necesita el campo "context" del request
+    "historial_esticc_guardar",# Necesita el campo "entrada" del request
+    "scan_hardware",           # Necesita el campo "muestreo" (segundos, default 3)
+}
 
 
 def enviar(mensaje: dict) -> None:
@@ -95,8 +102,13 @@ def main() -> None:
                 context = req.get("context", {})  # Si no viene context, usar dict vacío
                 resultado = correlacion.run(context)
             elif action == "historial_esticc_guardar":
-                entrada = req.get("entrada", {})
+                entrada = req.get("entrada", {})                    # Dict con la entrada a persistir
                 resultado = historial_esticc.guardar(entrada)
+            elif action == "scan_hardware":
+                # muestreo: segundos de bloqueo para medir CPU y disco con precisión real
+                # Rust/JS envían { payload: { muestreo: 3 } } que el Rust router fusiona en el JSON
+                muestreo = int(req.get("muestreo", 3))              # Default 3 s (balanceado)
+                resultado = escaner_hardware.run(muestreo=muestreo) # Escanear hardware completo
             else:
                 # El resto de acciones no necesitan datos extra → llamada directa sin args
                 resultado = ACCIONES_SIMPLES[action]()

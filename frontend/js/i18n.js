@@ -19,6 +19,7 @@ const ESTICC_STRINGS = {
       reportes:      'Informe',
       historial:     'Historial',
       configuracion: 'Configuración',
+      hardware:      'Hardware',   // Etiqueta del ítem de nav del panel de hardware (ES)
     },
     paneles: {
       defensas_titulo:      'Estado de las Defensas del Sistema',
@@ -33,6 +34,7 @@ const ESTICC_STRINGS = {
       historial_titulo:     'Historial de Análisis',
       enciclopedia_titulo:  'Enciclopedia de Malware',
       configuracion_titulo: 'Configuración',
+      hardware_titulo:      'Monitor de Hardware',   // Título del panel hardware (ES)
     },
     botones: {
       analizar:            'Analizar ahora',
@@ -164,6 +166,53 @@ const ESTICC_STRINGS = {
       autoscan_inicio:    'Iniciando análisis automático…',     // Toast que aparece al comenzar el auto-scan
       autoscan_ok:        'Análisis automático completado',     // Toast de éxito al terminar el auto-scan
     },
+    hardware: {
+      // ── Navegación y panel ──────────────────────────────────────────────
+      nav:                'Hardware',                           // Etiqueta en el menú lateral
+      titulo:             'Monitor de Hardware',                // Título del panel principal
+      btn_escanear:       'Escanear hardware',                  // Botón que lanza el escaneo
+      // ── Secciones de métricas ────────────────────────────────────────────
+      cpu_titulo:         'Procesador (CPU)',                   // Encabezado de la tarjeta CPU
+      ram_titulo:         'Memoria RAM',                        // Encabezado de la tarjeta RAM
+      disco_titulo:       'Almacenamiento',                     // Encabezado de la tarjeta disco
+      bateria_titulo:     'Batería',                            // Encabezado de la tarjeta batería
+      eventos_titulo:     'Eventos de Hardware',                // Encabezado de la tarjeta Event Log
+      // ── Métricas individuales ────────────────────────────────────────────
+      modelo:             'Modelo',                             // Nombre del procesador/disco
+      nucleos_fis:        'Núcleos físicos',                    // Conteo de núcleos sin HT
+      nucleos_log:        'Núcleos lógicos',                    // Conteo de núcleos con HT
+      frecuencia:         'Frecuencia',                         // Frecuencia actual en MHz/GHz
+      temperatura:        'Temperatura',                        // Grados Celsius del sensor
+      uso:                'Uso',                                // Porcentaje de uso (CPU/RAM)
+      total:              'Total',                              // Capacidad total (RAM/disco)
+      disponible:         'Disponible',                         // Memoria/espacio libre
+      velocidad_ram:      'Velocidad',                          // Velocidad de los módulos RAM en MHz
+      lectura:            'Lectura',                            // Velocidad de lectura de disco
+      escritura:          'Escritura',                          // Velocidad de escritura de disco
+      tipo_disco:         'Tipo',                               // HDD o SSD
+      // ── Batería ──────────────────────────────────────────────────────────
+      bat_cargando:       'Cargando',                           // Estado: conectado a corriente
+      bat_descargando:    'Descargando',                        // Estado: usando batería
+      bat_restante:       'Tiempo restante',                    // Minutos estimados de batería
+      bat_sin_datos:      'Sin datos',                          // Tiempo no calculable (cargando)
+      bat_ausente:        'Sin batería detectada',              // Desktop o portátil sin batería
+      // ── Eventos del Event Log ────────────────────────────────────────────
+      ev_reinicio:        'Reinicio inesperado',                // Kernel-Power ID 41
+      ev_throttling:      'Throttling térmico',                 // Kernel-Processor-Power ID 37
+      ev_desconocido:     'Evento desconocido',                 // Tipo no mapeado
+      sin_eventos:        'Sin eventos críticos recientes',     // Mensaje cuando la lista está vacía
+      // ── Indicadores de estado ────────────────────────────────────────────
+      temp_ok:            'Normal',                             // Temperatura por debajo del umbral de aviso
+      temp_warn:          'Elevada',                            // Temperatura entre 70–85 °C
+      temp_hot:           'Crítica',                            // Temperatura superior a 85 °C
+      temp_nd:            'No disponible',                      // Sensor de temperatura no detectado
+      // ── Tooltips de la gráfica histórica ────────────────────────────────
+      historial_cpu:      'Historial de CPU (últimas 30 muestras)',
+      historial_ram:      'Historial de RAM (últimas 30 muestras)',
+      // ── Modo avanzado: tabla de especificaciones ─────────────────────────
+      specs_titulo:       'Especificaciones del Sistema',       // Título de la tabla avanzada
+      ver_procesos:       'Ver procesos',                       // Enlace al panel de procesos
+    },
   },
 
   /* ── ENGLISH ─────────────────────────────────────────────────────── */
@@ -179,6 +228,7 @@ const ESTICC_STRINGS = {
       reportes:      'Report',
       historial:     'History',
       configuracion: 'Settings',
+      hardware:      'Hardware',   // Hardware nav label (EN)
     },
     paneles: {
       defensas_titulo:      'System Defense Status',
@@ -193,6 +243,7 @@ const ESTICC_STRINGS = {
       historial_titulo:     'Analysis History',
       enciclopedia_titulo:  'Malware Encyclopedia',
       configuracion_titulo: 'Settings',
+      hardware_titulo:      'Hardware Monitor',      // Hardware panel title (EN)
     },
     botones: {
       analizar:            'Analyze now',
@@ -323,6 +374,53 @@ const ESTICC_STRINGS = {
       banner_cerrar:      'Dismiss',
       autoscan_inicio:    'Starting automatic scan…',
       autoscan_ok:        'Automatic scan complete',
+    },
+    hardware: {
+      // ── Navigation and panel ─────────────────────────────────────────────
+      nav:                'Hardware',
+      titulo:             'Hardware Monitor',
+      btn_escanear:       'Scan hardware',
+      // ── Metric sections ──────────────────────────────────────────────────
+      cpu_titulo:         'Processor (CPU)',
+      ram_titulo:         'RAM Memory',
+      disco_titulo:       'Storage',
+      bateria_titulo:     'Battery',
+      eventos_titulo:     'Hardware Events',
+      // ── Individual metrics ───────────────────────────────────────────────
+      modelo:             'Model',
+      nucleos_fis:        'Physical cores',
+      nucleos_log:        'Logical cores',
+      frecuencia:         'Frequency',
+      temperatura:        'Temperature',
+      uso:                'Usage',
+      total:              'Total',
+      disponible:         'Available',
+      velocidad_ram:      'Speed',
+      lectura:            'Read',
+      escritura:          'Write',
+      tipo_disco:         'Type',
+      // ── Battery ──────────────────────────────────────────────────────────
+      bat_cargando:       'Charging',
+      bat_descargando:    'Discharging',
+      bat_restante:       'Time remaining',
+      bat_sin_datos:      'No data',
+      bat_ausente:        'No battery detected',
+      // ── Event Log events ─────────────────────────────────────────────────
+      ev_reinicio:        'Unexpected restart',
+      ev_throttling:      'Thermal throttling',
+      ev_desconocido:     'Unknown event',
+      sin_eventos:        'No recent critical events',
+      // ── Status indicators ────────────────────────────────────────────────
+      temp_ok:            'Normal',
+      temp_warn:          'Elevated',
+      temp_hot:           'Critical',
+      temp_nd:            'Not available',
+      // ── History chart tooltips ───────────────────────────────────────────
+      historial_cpu:      'CPU history (last 30 samples)',
+      historial_ram:      'RAM history (last 30 samples)',
+      // ── Advanced mode: specs table ───────────────────────────────────────
+      specs_titulo:       'System Specifications',
+      ver_procesos:       'View processes',
     },
   },
 };
