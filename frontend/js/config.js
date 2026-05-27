@@ -73,18 +73,47 @@
    * El rol 'administrador' fuerza el modo avanzado automáticamente (sin que el usuario lo active).
    * El rol 'persona_mayor' activa la clase rol-mayor que aumenta el tamaño de fuente global.
    */
+  // Roles que fuerzan la vista avanzada automáticamente
+  const ROLES_AVANZADO = new Set(['administrador', 'pyme_med']);
+
   function applyRol(rol) {
     document.body.dataset.rol = rol;  // Escribe data-rol="estudiante" (etc.) en el <body>
     document.body.classList.toggle('rol-mayor', rol === 'persona_mayor');  // Tipografía aumentada para mayores
 
-    if (rol === 'administrador') {
+    if (ROLES_AVANZADO.has(rol)) {
       document.body.classList.add('modo-avanzado');  // Mostrar vistas avanzadas (tablas, PID, etc.)
-      const cb = document.getElementById('modo-checkbox');  // Toggle del header
-      if (cb) { cb.checked = true; }  // Marcar visualmente el toggle como activo
-      const lbl = document.getElementById('modo-label');  // Etiqueta junto al toggle
-      // Usar t() si i18n ya está cargado (lo está, ya que config.js se carga después de i18n.js)
+      const cb = document.getElementById('modo-checkbox');
+      if (cb) { cb.checked = true; }
+      const lbl = document.getElementById('modo-label');
       if (lbl) lbl.textContent = window.t ? t('botones.modo_avanzado') : 'Modo Avanzado';
     }
+
+    // Mostrar el rol activo en el header como indicador visual
+    const NOMBRE_ROL = {
+      estudiante:    'Estudiante',
+      persona_mayor: 'Accesible',
+      pyme:          'PYME',
+      pyme_med:      'PYME Med',
+      administrador: 'Admin',
+    };
+    let badge = document.getElementById('rol-badge-header');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.id = 'rol-badge-header';
+      badge.style.cssText = [
+        'font-size:11px', 'padding:2px 8px', 'border-radius:10px',
+        'font-weight:600', 'background:rgba(88,166,255,0.15)',
+        'color:var(--accent)', 'border:1px solid rgba(88,166,255,0.3)',
+        'margin-left:4px',
+      ].join(';');
+      const header = document.querySelector('header');
+      // Insertar antes del label de modo (último elemento del header)
+      const modoToggle = document.getElementById('modo-toggle');
+      if (header && modoToggle) header.insertBefore(badge, modoToggle);
+    }
+    badge.textContent = NOMBRE_ROL[rol] || rol;
+    // Ocultar el badge si es el rol por defecto (evita ruido visual innecesario)
+    badge.style.display = rol === 'estudiante' ? 'none' : '';
   }
 
   /**

@@ -14,10 +14,19 @@
 
 /* ── 1. Grid principal ──────────────────────────────────────────────────── */
 
-/* El panel usa un grid de dos columnas en pantallas anchas y una en móvil.   */
-/* Las tarjetas de CPU y RAM ocupan cada una media fila; disco y batería ídem. */
+/*
+ * IMPORTANTE: #panel-hardware NO define display aquí.
+ * La visibilidad la controla el selector .panel / .panel.active en index.html
+ * (especificidad 0,1,0 / 0,2,0). Si pusiéramos display:grid aquí (especificidad
+ * 1,0,0 de ID), el panel quedaría siempre visible ignorando .panel{display:none}.
+ * Solución: el display:grid solo se activa en #panel-hardware.active (1,1,0),
+ * que supera a .panel.active{display:block} (0,2,0) y gana limpiamente.
+ */
+#panel-hardware.active {
+  display: grid;                                /* Solo visible cuando está activo */
+}
+
 #panel-hardware {
-  display: grid;                                /* Layout en cuadrícula      */
   grid-template-columns: repeat(2, 1fr);        /* Dos columnas de igual ancho */
   gap: 16px;                                    /* Separación entre tarjetas  */
   padding: 16px;                                /* Margen interior del panel  */
@@ -25,7 +34,7 @@
 
 /* En pantallas pequeñas (< 720 px), apilar todo en una columna */
 @media (max-width: 720px) {
-  #panel-hardware {
+  #panel-hardware.active {
     grid-template-columns: 1fr;                 /* Una columna única en móvil  */
   }
 }

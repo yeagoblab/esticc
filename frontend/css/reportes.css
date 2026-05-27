@@ -277,15 +277,21 @@
 @media print {
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 
-  /* Ocultar toda la UI de ESTICC */
-  header, nav, #loading, #banner-demo, #panel-simulador,
+  /* Ocultar toda la UI de ESTICC — incluye sidebar, toasts, banners y paneles no activos */
+  header, nav,
+  #sidebar, #toast-container, #banner-recordatorio, #banner-demo, #panel-simulador,
   #panel-defensas, #panel-puertos, #panel-procesos,
   #panel-autoinicio, #panel-parches,
   #panel-enciclopedia, #panel-radar,
+  #panel-historial, #panel-hardware, #panel-configuracion,
   #enc-modal-overlay { display: none !important; }
 
-  /* Ocultar controles del panel de reportes */
-  .rep-toolbar, .rep-progress { display: none !important; }
+  /* Ocultar controles del panel de reportes (botones de acción) */
+  .rep-toolbar, .rep-progress,
+  .card-header button, #btn-generar-informe, #btn-imprimir-informe { display: none !important; }
+
+  /* Layout: eliminar el flex del app-layout para que el panel ocupe toda la página */
+  .app-layout { display: block !important; }
 
   /* Mostrar solo el panel de reportes */
   main { padding: 0 !important; }

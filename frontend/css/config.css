@@ -75,7 +75,7 @@
 
 .cfg-rol-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 10px;
   width: 100%;
 }
@@ -84,12 +84,13 @@
   background: var(--bg);
   border: 2px solid var(--border);
   border-radius: 10px;
-  padding: 14px;
+  padding: 16px;
   cursor: pointer;
   transition: all 0.15s;
   font-family: inherit;
   text-align: left;
   color: var(--text);
+  min-height: 80px;
 }
 
 .cfg-rol-card:hover {
@@ -109,9 +110,9 @@
 }
 
 .cfg-rol-desc {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-dim);
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 /* ── Toggle checkbox ──────────────────────────────────────────────────────── */

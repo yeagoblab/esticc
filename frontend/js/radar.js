@@ -73,7 +73,7 @@
     estado.cargando = true;  // Marcar como en progreso para evitar doble click
     const btn = document.getElementById('btn-radar');
     if (btn) { btn.disabled = true; btn.textContent = t('estados.analizando'); }  // Feedback visual inmediato
-    document.getElementById('loading').style.display = 'block';  // Mostrar spinner global
+    setLoading(true, 'Actualizando Radar OSINT…');
 
     try {
       // ── Paso 1: Descargar noticias RSS desde el sidecar Python ───────────────
@@ -117,7 +117,7 @@
       // Siempre restaurar la UI al estado normal, haya habido error o no
       estado.cargando = false;
       if (btn) { btn.disabled = false; btn.textContent = t('botones.actualizar_radar'); }
-      document.getElementById('loading').style.display = 'none';
+      setLoading(false);
     }
   }
 

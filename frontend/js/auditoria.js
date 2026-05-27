@@ -71,6 +71,30 @@ function setLoading(on, texto = 'Analizando…') {
   }
 }
 
+// Timeouts máximos por acción (ms). scan_patches puede tardar hasta 2 min en WUA lento.
+const SCAN_TIMEOUTS = {
+  scan_defenses:  35000,
+  scan_ports:     20000,
+  scan_processes: 20000,
+  scan_startup:   50000,
+  scan_patches:  120000,
+  generate_report: 150000,
+};
+
+/**
+ * withTimeout — Cancela una promesa si no resuelve en `ms` milisegundos.
+ * No aborta la operación subyacente (el sidecar sigue corriendo), pero
+ * libera la UI y devuelve un error descriptivo al usuario.
+ */
+function withTimeout(promise, ms, etiqueta) {
+  const t_out = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error(
+      `"${etiqueta}" no respondió en ${ms / 1000}s — el escaneo puede estar bloqueado`
+    )), ms)
+  );
+  return Promise.race([promise, t_out]);
+}
+
 // ── Utilidades ────────────────────────────────────────────────────────────────
 
 function badge(texto, tipo) {
@@ -438,7 +462,8 @@ async function escanear(action, btnId, resultadoId, renderer) {
   btn.disabled = true;
   setLoading(true, t('estados.analizando'));
   try {
-    const resultado = await invoke('audit', { action });
+    const ms = SCAN_TIMEOUTS[action] || 60000;
+    const resultado = await withTimeout(invoke('audit', { action }), ms, action);
 
     if (!resultado.ok) {
       div.innerHTML = `<p style="color:var(--danger);margin-top:10px;">Error del escáner: ${resultado.error}</p>`;
@@ -459,8 +484,12 @@ async function escanear(action, btnId, resultadoId, renderer) {
       if (window.ESTICC_BG) window.ESTICC_BG.registrarEscaneo();
     }
   } catch (e) {
-    div.innerHTML = `<p style="color:var(--danger);margin-top:10px;">Error de comunicación: ${e}</p>`;
-    showToast(t('estados.error_com'), 'danger', 3500);
+    const esTimeout = String(e).includes('no respondió');
+    const msg = esTimeout
+      ? `⏱ ${e}`
+      : `Error de comunicación: ${e}`;
+    div.innerHTML = `<p style="color:var(--danger);margin-top:10px;">${msg}</p>`;
+    showToast(esTimeout ? '⏱ Escaneo cancelado por tiempo de espera' : t('estados.error_com'), 'danger', 4000);
   } finally {
     btn.disabled = false;
     setLoading(false);
