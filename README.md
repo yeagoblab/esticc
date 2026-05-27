@@ -92,6 +92,13 @@ Panel de ajustes persistidos en `localStorage` con efecto inmediato sin recargar
 - **Auto-análisis al iniciar** — ejecuta los 5 escáneres automáticamente al abrir la app
 - **Tiempo de muestreo** — rápido (2s) / balanceado (3s) / preciso (5s)
 
+### 🔄 Actualización in-app
+Botón "Buscar actualización" en el panel de Configuración que permite actualizar ESTICC sin salir de la app ni requerir permisos de administrador:
+1. Consulta la GitHub Releases API y compara la versión instalada con la publicada
+2. Muestra las novedades de la nueva versión antes de descargar
+3. Descarga el ZIP portable directamente desde GitHub (~10 MB)
+4. Cierra la app y un script PowerShell desacoplado reemplaza los binarios y la relanza automáticamente
+
 ### 🔄 Modo Básico / Avanzado
 Toggle global que cambia la presentación de todos los paneles:
 - **Básico** — escudos visuales con estado OK/WARN/DANGER, filas alternas en listas, orientado a usuarios sin conocimientos técnicos
@@ -198,8 +205,11 @@ esticc/
 │   ├── modulo_05_historial/
 │   │   ├── historial_defender.py      # Consulta el log de eventos de Windows Defender
 │   │   └── historial_esticc.py        # Persiste el historial propio en %APPDATA%\ESTICC\
-│   └── modulo_06_hardware/
-│       └── escaner_hardware.py        # CPU, RAM, disco, batería y Event Log de hardware
+│   ├── modulo_06_hardware/
+│   │   └── escaner_hardware.py        # CPU, RAM, disco, batería y Event Log de hardware
+│   └── modulo_07_actualizador/
+│       ├── __init__.py                # Exporta check_update, download_and_prepare, apply_update
+│       └── actualizador.py            # GitHub API + descarga ZIP + PS script copy-on-close
 ├── frontend/
 │   ├── index.html                     # SPA única; incluye todos los paneles y el CSS base
 │   ├── css/
@@ -220,7 +230,8 @@ esticc/
 │       ├── radar.js                   # Fetch OSINT + renderizado en vista básica/avanzada
 │       ├── reportes.js                # Generación del informe HTML exportable a PDF
 │       ├── historial.js               # Calendario interactivo + window.HISTORIAL.registrar()
-│       └── hardware.js                # Monitor de CPU/RAM/disco/batería + Event Log
+│       ├── hardware.js                # Monitor de CPU/RAM/disco/batería + Event Log
+│       └── actualizador.js            # UI de actualización in-app (comprobar → descargar → instalar)
 └── src-tauri/
     ├── src/main.rs                    # Sidecar spawn (CREATE_NO_WINDOW) + IPC Rust↔Python
     ├── Cargo.toml                     # Versión del paquete (debe coincidir con tauri.conf.json)
@@ -259,6 +270,9 @@ Acciones disponibles:
 | `historial_defender` | historial | — | Estado y eventos del log de Windows Defender |
 | `historial_esticc_get` | historial | — | Lee el historial persistido en %APPDATA%\ESTICC\ |
 | `historial_esticc_guardar` | historial | — | Añade una entrada al historial (política FIFO 100) |
+| `update_check` | actualizador | 15s | Consulta GitHub Releases API y compara versiones |
+| `update_download` | actualizador | 120s | Descarga el ZIP portable y prepara el script de sustitución |
+| `update_apply` | actualizador | — | Lanza el PS script desacoplado y señala que la app debe cerrarse |
 
 > **Timeout UI**: si el sidecar Python no responde en ese tiempo, la UI muestra un aviso descriptivo y se desbloquea. El sidecar continúa ejecutándose en segundo plano y acepta la siguiente petición cuando termina.
 
@@ -319,6 +333,9 @@ La lista se limita a las **100 entradas más recientes** (política FIFO). Para 
 ---
 
 ## Changelog
+
+### [v0.4.1](https://github.com/yeagoblab/esticc/releases/tag/v0.4.1) — 2026-05-28
+- **feat:** actualización in-app desde el panel de Configuración — comprueba la versión en GitHub, muestra las novedades, descarga el ZIP y reemplaza los binarios automáticamente tras cerrar la app (sin permisos de administrador)
 
 ### [v0.4.0](https://github.com/yeagoblab/esticc/releases/tag/v0.4.0) — 2026-05-27
 - **fix:** panel Hardware ya no se solapa con otras secciones (conflicto de especificidad CSS ID vs. clase resuelto)
