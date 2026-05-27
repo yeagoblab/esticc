@@ -1000,6 +1000,22 @@
             </div>
           </div>
 
+          <!-- Sección: Actualización de la aplicación -->
+          <div class="cfg-section">
+            <div class="cfg-section-titulo">Actualización de la Aplicación</div>
+            <div class="cfg-field" style="flex-direction:column;align-items:flex-start;gap:10px;">
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <button class="scan-btn" id="upd-check-btn">Buscar actualización</button>
+                <button class="scan-btn" id="upd-instalar-btn" style="display:none;">Descargar e instalar</button>
+              </div>
+              <div id="upd-estado" class="upd-estado">● Sin comprobar</div>
+              <div id="upd-novedades-bloque" class="upd-novedades-bloque" style="display:none;">
+                <div class="upd-novedades-titulo">Novedades en esta versión:</div>
+                <pre id="upd-novedades-cuerpo" class="upd-novedades-cuerpo"></pre>
+              </div>
+            </div>
+          </div>
+
           <!-- Footer -->
           <div class="cfg-footer">
             <button class="scan-btn" id="cfg-guardar-btn" data-i18n="config.guardar_btn">Guardar cambios</button>
@@ -1077,6 +1093,7 @@
 <script src="js/reportes.js"></script>
 <script src="js/historial.js"></script>
 <script src="js/hardware.js"></script>
+<script src="js/actualizador.js"></script>
 
 <script>
   // Sidebar toggle

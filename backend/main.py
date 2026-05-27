@@ -36,6 +36,9 @@ from modulo_05_historial import historial_defender, historial_esticc
 # Importamos el módulo de monitorización de hardware (CPU, RAM, disco, batería, eventos)
 from modulo_06_hardware import escaner_hardware
 
+# Importamos el módulo de auto-actualización (GitHub Releases API)
+from modulo_07_actualizador import actualizador
+
 # Diccionario acción → función: permite despachar sin if/elif explícitos
 # Las acciones simples no necesitan datos extra del request
 ACCIONES_SIMPLES: dict[str, callable] = {
@@ -45,9 +48,10 @@ ACCIONES_SIMPLES: dict[str, callable] = {
     "scan_defenses":  estado_defensas.run,    # Estado de las defensas
     "scan_patches":   verificador_parches.run,# Parches pendientes
     "radar_fetch":    lector_rss.run,         # Descarga de noticias RSS
-    "generate_report":      generador.run,          # Informe consolidado (5 escáneres + riesgo)
-    "historial_defender":   historial_defender.run, # Historial de análisis de Defender
-    "historial_esticc_get": historial_esticc.get,   # Historial de escaneos ESTICC (lectura)
+    "generate_report":      generador.run,           # Informe consolidado (5 escáneres + riesgo)
+    "historial_defender":   historial_defender.run,  # Historial de análisis de Defender
+    "historial_esticc_get": historial_esticc.get,    # Historial de escaneos ESTICC (lectura)
+    "update_check":         actualizador.check_update, # Consulta GitHub Releases API
 }
 
 # Conjunto de todas las acciones válidas, incluyendo las que tienen lógica especial
@@ -55,6 +59,8 @@ ACCIONES_CONOCIDAS: set[str] = set(ACCIONES_SIMPLES) | {
     "radar_correlate",         # Necesita el campo "context" del request
     "historial_esticc_guardar",# Necesita el campo "entrada" del request
     "scan_hardware",           # Necesita el campo "muestreo" (segundos, default 3)
+    "update_download",         # Necesita el campo "url_zip"
+    "update_apply",            # Necesita el campo "ps_path"
 }
 
 
@@ -109,6 +115,12 @@ def main() -> None:
                 # Rust/JS envían { payload: { muestreo: 3 } } que el Rust router fusiona en el JSON
                 muestreo = int(req.get("muestreo", 3))              # Default 3 s (balanceado)
                 resultado = escaner_hardware.run(muestreo=muestreo) # Escanear hardware completo
+            elif action == "update_download":
+                url_zip  = req.get("url_zip", "")
+                resultado = actualizador.download_and_prepare(url_zip)
+            elif action == "update_apply":
+                ps_path  = req.get("ps_path", "")
+                resultado = actualizador.apply_update(ps_path)
             else:
                 # El resto de acciones no necesitan datos extra → llamada directa sin args
                 resultado = ACCIONES_SIMPLES[action]()

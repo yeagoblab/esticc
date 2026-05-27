@@ -204,6 +204,45 @@ body.tema-claro {
   --text-dim: #656d76;
 }
 
+/* ── Sección de actualización ─────────────────────────────────────────────── */
+
+.upd-estado {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-family: 'Consolas', monospace;
+  min-height: 18px;
+  transition: color 0.2s;
+}
+
+.upd-novedades-bloque {
+  width: 100%;
+  background: rgba(88,166,255,0.05);
+  border: 1px solid rgba(88,166,255,0.2);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.upd-novedades-titulo {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.upd-novedades-cuerpo {
+  font-size: 11px;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+  max-height: 160px;
+  overflow-y: auto;
+  margin: 0;
+  font-family: inherit;
+}
+
 /* ── Rol persona mayor: tipografía aumentada ─────────────────────────────── */
 
 body.rol-mayor {
