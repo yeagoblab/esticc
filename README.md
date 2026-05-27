@@ -280,6 +280,16 @@ La lista se limita a las **100 entradas más recientes** (política FIFO). Para 
 
 ## Changelog
 
+### [v0.4.0](https://github.com/yeagoblab/esticc/releases/tag/v0.4.0) — 2026-05-27
+- **fix:** panel Hardware ya no se solapa con otras secciones (conflicto de especificidad CSS ID vs. clase resuelto)
+- **fix:** Radar OSINT vuelve a funcionar (`#loading` eliminado sustituido por el sistema de toasts)
+- **fix:** PDF generado ya no incluye la barra lateral de navegación
+- **feat:** detección de atascos en todos los escaneos con timeout configurable por módulo y mensaje descriptivo al usuario
+- **feat:** filas alternas en listas de vista básica (defensas, procesos, autoinicio)
+- **feat:** Módulo 06 — Monitor de Hardware (CPU, RAM, disco, batería, Event Log) integrado en la interfaz principal
+- **feat:** Panel de Configuración con i18n ES/EN, escáner en segundo plano y perfil de usuario; perfil `Mediana PYME` activa modo avanzado automáticamente
+- **ui:** cards de perfiles de usuario más anchas y con texto más legible
+
 ### [v0.3.2](https://github.com/yeagoblab/esticc/releases/tag/v0.3.2) — 2026-05-24
 - **chore:** recompilación del portable con los metadatos de versión corregidos. El binario ahora reporta `0.3.2` internamente.
 
