@@ -71,28 +71,54 @@ function setLoading(on, texto = 'Analizando…') {
   }
 }
 
-// Timeouts máximos por acción (ms). scan_patches puede tardar hasta 2 min en WUA lento.
+// ── Timeouts por escáner ─────────────────────────────────────────────────────
+//
+// Cada escáner del sidecar Python llama a tecnologías de Windows con latencias
+// muy diferentes. Estos valores son límites superiores conservadores:
+//
+//   scan_defenses  (35s)  — PowerShell CIM / WMI para Firewall, Defender y BitLocker.
+//                           Puede bloquearse si el servicio WMI está ocupado.
+//   scan_ports     (20s)  — psutil.net_connections(); casi siempre < 1s, margen amplio.
+//   scan_processes (20s)  — psutil.process_iter() + sleep(300ms) de muestreo de CPU.
+//   scan_startup   (50s)  — 'schtasks /query' puede tardar 30s+ con muchas GPOs activas.
+//   scan_patches  (120s)  — WUA (Windows Update Agent) puede llegar a 90s en la caché local.
+//   generate_report (150s)— Ejecuta los 5 escáneres en secuencia; es la suma máxima de todos.
+//
+// Si un escáner supera su límite, casi siempre indica un bloqueo real (WMI colgado,
+// WUA buscando actualizaciones, política de grupo lenta). El timeout libera la UI
+// inmediatamente para que el usuario pueda reintentar o trabajar con otros paneles.
 const SCAN_TIMEOUTS = {
-  scan_defenses:  35000,
-  scan_ports:     20000,
-  scan_processes: 20000,
-  scan_startup:   50000,
-  scan_patches:  120000,
+  scan_defenses:   35000,
+  scan_ports:      20000,
+  scan_processes:  20000,
+  scan_startup:    50000,
+  scan_patches:   120000,
   generate_report: 150000,
 };
 
 /**
- * withTimeout — Cancela una promesa si no resuelve en `ms` milisegundos.
- * No aborta la operación subyacente (el sidecar sigue corriendo), pero
- * libera la UI y devuelve un error descriptivo al usuario.
+ * withTimeout(promise, ms, etiqueta) — Pone un límite de tiempo a cualquier promesa.
+ *
+ * Usa Promise.race() entre la promesa real y un temporizador de rechazo.
+ * Si el temporizador gana, el usuario ve un mensaje descriptivo inmediatamente.
+ *
+ * Diseño deliberado: NO cancela la operación subyacente en el sidecar Python.
+ * Esto es aceptable porque:
+ *  1. No existe un canal de cancelación en el protocolo IPC actual (stdin/stdout).
+ *  2. Los bloqueos de WMI/WUA son transitorios; el sidecar se recupera solo.
+ *  3. El usuario puede lanzar un nuevo escaneo de inmediato: el sidecar cola la
+ *     siguiente petición cuando termina la bloqueada.
+ *
+ * Si en el futuro se necesita cancelación real, añadir action:"cancel" al protocolo IPC
+ * y manejar la señal en backend/main.py.
  */
 function withTimeout(promise, ms, etiqueta) {
-  const t_out = new Promise((_, reject) =>
+  const limite = new Promise((_, reject) =>
     setTimeout(() => reject(new Error(
       `"${etiqueta}" no respondió en ${ms / 1000}s — el escaneo puede estar bloqueado`
     )), ms)
   );
-  return Promise.race([promise, t_out]);
+  return Promise.race([promise, limite]);
 }
 
 // ── Utilidades ────────────────────────────────────────────────────────────────

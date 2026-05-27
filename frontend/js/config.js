@@ -67,28 +67,46 @@
     document.body.classList.toggle('tema-claro', tema === 'claro');  // true → añade clase, false → la elimina
   }
 
-  /**
-   * applyRol(rol) — Almacena el rol en un atributo data-* del body y activa efectos secundarios.
-   * data-rol permite a CSS futuro aplicar reglas específicas por rol (ej. data-rol="persona_mayor").
-   * El rol 'administrador' fuerza el modo avanzado automáticamente (sin que el usuario lo active).
-   * El rol 'persona_mayor' activa la clase rol-mayor que aumenta el tamaño de fuente global.
-   */
-  // Roles que fuerzan la vista avanzada automáticamente
+  // Roles que activan el modo avanzado automáticamente al seleccionarse.
+  //  · 'administrador' → usuario técnico; necesita todas las tablas y datos raw.
+  //  · 'pyme_med'      → entorno corporativo donde el responsable de IT espera la vista completa.
+  // 'pyme' (pequeña PYME) NO está aquí: sus usuarios suelen ser no técnicos y
+  // la vista básica con escudos visuales les resulta más clara.
   const ROLES_AVANZADO = new Set(['administrador', 'pyme_med']);
 
+  /**
+   * applyRol(rol) — Aplica todos los efectos de interfaz asociados al perfil de usuario.
+   *
+   * Efectos por rol:
+   *  · estudiante    → modo básico por defecto; sin efectos extra (es el rol neutro)
+   *  · persona_mayor → clase rol-mayor en <body> → tipografía 16px (ver config.css)
+   *  · pyme          → data-rol="pyme" en <body> (reservado para CSS futuro)
+   *  · pyme_med      → fuerza modo avanzado igual que administrador
+   *  · administrador → fuerza modo avanzado (tablas, PID, datos técnicos)
+   *
+   * El badge del header se crea una sola vez en el DOM (la primera llamada) y luego
+   * se reutiliza actualizando solo textContent. Esto evita acumular nodos repetidos
+   * si el usuario cambia de rol varias veces sin recargar la página.
+   * Se oculta para 'estudiante' porque es el valor por defecto y mostrarlo añadiría
+   * ruido visual sin aportar información útil.
+   */
   function applyRol(rol) {
-    document.body.dataset.rol = rol;  // Escribe data-rol="estudiante" (etc.) en el <body>
-    document.body.classList.toggle('rol-mayor', rol === 'persona_mayor');  // Tipografía aumentada para mayores
+    document.body.dataset.rol = rol;  // data-rol="xxx" en <body> → disponible como selector CSS [data-rol]
+    document.body.classList.toggle('rol-mayor', rol === 'persona_mayor');  // Tipografía aumentada
 
     if (ROLES_AVANZADO.has(rol)) {
-      document.body.classList.add('modo-avanzado');  // Mostrar vistas avanzadas (tablas, PID, etc.)
+      // Forzar modo avanzado: añadir clase, marcar el toggle del header y cambiar su etiqueta
+      document.body.classList.add('modo-avanzado');
       const cb = document.getElementById('modo-checkbox');
       if (cb) { cb.checked = true; }
       const lbl = document.getElementById('modo-label');
+      // t() ya está disponible porque config.js se carga después de i18n.js en el HTML
       if (lbl) lbl.textContent = window.t ? t('botones.modo_avanzado') : 'Modo Avanzado';
     }
 
-    // Mostrar el rol activo en el header como indicador visual
+    // ── Badge de rol activo en el header ─────────────────────────────────────
+    // Muestra un chip con el nombre del perfil activo junto al toggle de modo,
+    // para que el usuario sepa en todo momento con qué perfil está trabajando.
     const NOMBRE_ROL = {
       estudiante:    'Estudiante',
       persona_mayor: 'Accesible',
@@ -98,6 +116,9 @@
     };
     let badge = document.getElementById('rol-badge-header');
     if (!badge) {
+      // Primera vez: crear el nodo e insertarlo antes del toggle de modo en el header.
+      // Los estilos van inline porque este elemento no tiene clase en el CSS base
+      // (vive en config.js, fuera del alcance de config.css que carga antes).
       badge = document.createElement('span');
       badge.id = 'rol-badge-header';
       badge.style.cssText = [
@@ -106,13 +127,12 @@
         'color:var(--accent)', 'border:1px solid rgba(88,166,255,0.3)',
         'margin-left:4px',
       ].join(';');
-      const header = document.querySelector('header');
-      // Insertar antes del label de modo (último elemento del header)
       const modoToggle = document.getElementById('modo-toggle');
+      const header     = document.querySelector('header');
       if (header && modoToggle) header.insertBefore(badge, modoToggle);
     }
     badge.textContent = NOMBRE_ROL[rol] || rol;
-    // Ocultar el badge si es el rol por defecto (evita ruido visual innecesario)
+    // Ocultar para 'estudiante': es el rol por defecto y el badge añadiría ruido visual
     badge.style.display = rol === 'estudiante' ? 'none' : '';
   }
 

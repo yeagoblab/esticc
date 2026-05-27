@@ -15,12 +15,22 @@ Pensado para estudiantes, PYMEs y usuarios individuales que quieran entender el 
 ## Características
 
 ### 🛡️ Auditoría Local
-Escanea el sistema Windows en tiempo real:
+Escanea el sistema Windows en tiempo real con detección de atascos: si un escáner no responde en su tiempo límite (WMI bloqueado, WUA lento, etc.) la UI lo indica inmediatamente con un mensaje descriptivo en lugar de quedarse colgada.
 - **Defensas** — estado de Firewall, Windows Defender y BitLocker
-- **Puertos** — conexiones TCP activas y sockets en escucha
-- **Procesos** — procesos activos con alertas de CPU/RAM elevada y ejecutables sin ruta
+- **Puertos** — conexiones TCP activas y sockets en escucha, con alertas de puertos sospechosos
+- **Procesos** — procesos activos con alertas de CPU/RAM elevada y ejecutables sin ruta en disco
 - **Autoinicio** — entradas de registro (Run/RunOnce) y tareas programadas
 - **Parches** — actualizaciones pendientes de Windows Update
+
+### 💻 Monitor de Hardware
+Panel en tiempo real con métricas del sistema y detección de eventos críticos:
+- **CPU** — uso en %, modelo, núcleos físicos/lógicos, frecuencia y temperatura (modo avanzado)
+- **RAM** — uso en %, total, disponible y velocidad de los módulos (modo avanzado)
+- **Almacenamiento** — uso por partición con barras de color, velocidades de lectura/escritura y tipo de disco (HDD/SSD)
+- **Batería** — porcentaje, estado de carga y tiempo estimado restante (oculto en equipos de sobremesa sin batería)
+- **Event Log de hardware** — últimos eventos críticos del Visor de eventos de Windows (reinicios inesperados, errores de disco, etc.)
+- Gráficas de historial de CPU y RAM con las últimas 30 muestras
+- Tabla de especificaciones del sistema (visible solo en modo avanzado)
 
 ### 📡 Radar OSINT
 Monitoriza 6 fuentes de inteligencia de ciberseguridad en tiempo real y correlaciona las amenazas publicadas con el estado del sistema local:
@@ -50,7 +60,7 @@ Ejecuta los 5 escáneres de auditoría en una sola operación, calcula una puntu
 - Hallazgos individuales con nivel de severidad y categoría
 - Resumen por módulo con métricas clave
 - Recomendaciones de remediación personalizadas según los hallazgos detectados
-- Exportación a PDF mediante `window.print()` sin dependencias externas
+- Exportación a PDF limpia (sin barra lateral ni elementos de la UI) mediante `window.print()`
 
 ### 📅 Historial de Análisis
 Calendario interactivo que combina los datos de **Windows Defender** con los escaneos propios de ESTICC:
@@ -68,10 +78,24 @@ Base de conocimiento con 10 categorías de amenazas, búsqueda en tiempo real y 
 - CVEs asociados
 - Vectores de ataque, síntomas y medidas de prevención
 
+### ⚙️ Configuración y Perfiles de Usuario
+Panel de ajustes persistidos en `localStorage` con efecto inmediato sin recargar:
+- **Perfil de usuario** — 5 perfiles con comportamientos diferenciados:
+  - *Estudiante* — modo básico por defecto, orientado al aprendizaje
+  - *Persona Mayor* — tipografía aumentada y lenguaje simplificado
+  - *Pequeña PYME* — contexto empresarial con recomendaciones de seguridad
+  - *Mediana PYME* — activa el modo avanzado automáticamente
+  - *Administrador* — modo avanzado completo con todos los datos técnicos
+- **Tema visual** — oscuro (por defecto) o claro
+- **Idioma** — Español / English (i18n completo de la interfaz)
+- **Escáner en segundo plano** — recordatorio configurable si no se analiza en N días
+- **Auto-análisis al iniciar** — ejecuta los 5 escáneres automáticamente al abrir la app
+- **Tiempo de muestreo** — rápido (2s) / balanceado (3s) / preciso (5s)
+
 ### 🔄 Modo Básico / Avanzado
 Toggle global que cambia la presentación de todos los paneles:
-- **Básico** — escudos visuales con estado OK/WARN/DANGER, orientado a usuarios sin conocimientos técnicos
-- **Avanzado** — tablas de datos completos, CVEs, IOCs y detalles técnicos
+- **Básico** — escudos visuales con estado OK/WARN/DANGER, filas alternas en listas, orientado a usuarios sin conocimientos técnicos
+- **Avanzado** — tablas de datos completos, CVEs, IOCs, PID de procesos y detalles técnicos
 
 ---
 
@@ -152,42 +176,55 @@ run.bat
 esticc/
 ├── setup.bat                          # Configura entorno virtual + Tauri CLI (una sola vez)
 ├── run.bat                            # Inicia la aplicación en modo desarrollo
+├── scripts/
+│   └── package_release.ps1            # Empaqueta ESTICC_portable_win64.zip para release
+├── installer/
+│   ├── esticc_installer.py            # Instalador gráfico (tkinter + stdlib; sin deps externas)
+│   └── build_installer.ps1            # Compila esticc_installer.py con PyInstaller
 ├── backend/
-│   ├── main.py                        # Router IPC (stdin/stdout JSON)
+│   ├── main.py                        # Router IPC (stdin/stdout JSON newline-delimited)
 │   ├── requirements.txt               # psutil, feedparser
 │   ├── modulo_02_auditoria/
-│   │   ├── escaner_puertos.py         # Conexiones TCP activas
-│   │   ├── escaner_procesos.py        # Procesos + CPU/RAM
-│   │   ├── analisis_autoinicio.py     # Registro Run + tareas
-│   │   ├── estado_defensas.py         # Firewall, Defender, BitLocker
-│   │   └── verificador_parches.py     # Windows Update pendientes
+│   │   ├── escaner_puertos.py         # Conexiones TCP activas (psutil.net_connections)
+│   │   ├── escaner_procesos.py        # Procesos activos con métricas de CPU/RAM
+│   │   ├── analisis_autoinicio.py     # Registro Run/RunOnce + tareas programadas
+│   │   ├── estado_defensas.py         # Firewall, Windows Defender y BitLocker (CIM/WMI)
+│   │   └── verificador_parches.py     # Actualizaciones pendientes de Windows Update (WUA)
 │   ├── modulo_03_radar/
-│   │   ├── lector_rss.py              # Fetch concurrente de 6 feeds RSS
-│   │   └── correlacion.py             # Correlación puerto/CVE con estado local
+│   │   ├── lector_rss.py              # Fetch concurrente de 6 feeds RSS de ciberseguridad
+│   │   └── correlacion.py             # Cruza noticias con puertos abiertos y CVEs locales
 │   ├── modulo_04_reportes/
-│   │   └── generador.py               # 5 escáneres + puntuación de riesgo 0-100
-│   └── modulo_05_historial/
-│       ├── historial_defender.py      # Consulta eventos del log de Windows Defender
-│       └── historial_esticc.py        # Persiste historial propio en %APPDATA%\ESTICC\
+│   │   └── generador.py               # Ejecuta los 5 escáneres + puntuación de riesgo 0-100
+│   ├── modulo_05_historial/
+│   │   ├── historial_defender.py      # Consulta el log de eventos de Windows Defender
+│   │   └── historial_esticc.py        # Persiste el historial propio en %APPDATA%\ESTICC\
+│   └── modulo_06_hardware/
+│       └── escaner_hardware.py        # CPU, RAM, disco, batería y Event Log de hardware
 ├── frontend/
-│   ├── index.html                     # SPA única con todos los paneles
+│   ├── index.html                     # SPA única; incluye todos los paneles y el CSS base
 │   ├── css/
-│   │   ├── simulador.css
-│   │   ├── enciclopedia.css
-│   │   ├── radar.css
-│   │   ├── reportes.css               # Estilos del informe + @media print
-│   │   └── historial.css              # Calendario mensual + timeline de eventos
+│   │   ├── simulador.css              # Paneles del simulador de amenazas
+│   │   ├── enciclopedia.css           # Grid de tarjetas + modal de amenaza
+│   │   ├── radar.css                  # Contadores OSINT + tabla de noticias
+│   │   ├── reportes.css               # Informe de seguridad + @media print (PDF limpio)
+│   │   ├── historial.css              # Calendario mensual + timeline de eventos
+│   │   ├── config.css                 # Panel de configuración + variables de tema claro
+│   │   └── hardware.css               # Grid de tarjetas de hardware + gauges SVG
 │   └── js/
-│       ├── auditoria.js               # Renderers + botones de escaneo
-│       ├── simulador.js               # Escenarios de demo + interceptor
-│       ├── enciclopedia.js            # Base de datos + buscador + modal
-│       ├── radar.js                   # Fetch OSINT + renderizado dual
-│       ├── reportes.js                # Generación y renderizado del informe HTML
-│       └── historial.js               # Calendario + window.HISTORIAL.registrar()
+│       ├── i18n.js                    # Diccionarios ES/EN + función t() global
+│       ├── config.js                  # Carga/guarda config en localStorage; aplica tema, rol e idioma
+│       ├── background.js              # Escáner en segundo plano + banner de recordatorio
+│       ├── auditoria.js               # Renderers de los 5 módulos + sistema de toasts + withTimeout
+│       ├── simulador.js               # 8 escenarios de demo + interceptor de invoke()
+│       ├── enciclopedia.js            # Base de datos de malware + buscador + modal de detalle
+│       ├── radar.js                   # Fetch OSINT + renderizado en vista básica/avanzada
+│       ├── reportes.js                # Generación del informe HTML exportable a PDF
+│       ├── historial.js               # Calendario interactivo + window.HISTORIAL.registrar()
+│       └── hardware.js                # Monitor de CPU/RAM/disco/batería + Event Log
 └── src-tauri/
-    ├── src/main.rs                    # Sidecar spawn + IPC Rust↔Python
-    ├── Cargo.toml
-    └── tauri.conf.json
+    ├── src/main.rs                    # Sidecar spawn (CREATE_NO_WINDOW) + IPC Rust↔Python
+    ├── Cargo.toml                     # Versión del paquete (debe coincidir con tauri.conf.json)
+    └── tauri.conf.json                # Config de Tauri: versión, bundle, CSP, allowlist
 ```
 
 ---
@@ -208,19 +245,22 @@ El sidecar Python se comunica con Rust mediante JSON newline-delimited por stdin
 
 Acciones disponibles:
 
-| Acción | Módulo | Descripción |
-|---|---|---|
-| `scan_defenses` | auditoria | Firewall, Defender, BitLocker |
-| `scan_ports` | auditoria | Conexiones TCP activas |
-| `scan_processes` | auditoria | Procesos con métricas |
-| `scan_startup` | auditoria | Autoinicio y tareas programadas |
-| `scan_patches` | auditoria | Actualizaciones pendientes |
-| `radar_fetch` | radar | Descarga las últimas noticias RSS |
-| `radar_correlate` | radar | Cruza noticias con el estado local |
-| `generate_report` | reportes | 5 escáneres + puntuación de riesgo |
-| `historial_defender` | historial | Estado y eventos del log de Defender |
-| `historial_esticc_get` | historial | Lee el historial persistido de ESTICC |
-| `historial_esticc_guardar` | historial | Añade una entrada al historial |
+| Acción | Módulo | Timeout UI | Descripción |
+|---|---|---|---|
+| `scan_defenses` | auditoria | 35s | Firewall, Defender y BitLocker (CIM/WMI) |
+| `scan_ports` | auditoria | 20s | Conexiones TCP activas (psutil) |
+| `scan_processes` | auditoria | 20s | Procesos con métricas de CPU/RAM |
+| `scan_startup` | auditoria | 50s | Autoinicio (registro + schtasks) |
+| `scan_patches` | auditoria | 120s | Actualizaciones pendientes (WUA) |
+| `scan_hardware` | hardware | 30s | CPU, RAM, disco, batería, Event Log |
+| `radar_fetch` | radar | — | Descarga las últimas noticias RSS (6 feeds) |
+| `radar_correlate` | radar | — | Cruza noticias con el estado local |
+| `generate_report` | reportes | 150s | 5 escáneres en secuencia + puntuación de riesgo |
+| `historial_defender` | historial | — | Estado y eventos del log de Windows Defender |
+| `historial_esticc_get` | historial | — | Lee el historial persistido en %APPDATA%\ESTICC\ |
+| `historial_esticc_guardar` | historial | — | Añade una entrada al historial (política FIFO 100) |
+
+> **Timeout UI**: si el sidecar Python no responde en ese tiempo, la UI muestra un aviso descriptivo y se desbloquea. El sidecar continúa ejecutándose en segundo plano y acepta la siguiente petición cuando termina.
 
 ---
 
