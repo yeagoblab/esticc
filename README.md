@@ -79,7 +79,7 @@ Base de conocimiento con 10 categorías de amenazas, búsqueda en tiempo real y 
 - Vectores de ataque, síntomas y medidas de prevención
 
 ### ⚙️ Configuración y Perfiles de Usuario
-Panel de ajustes persistidos en `localStorage` con efecto inmediato sin recargar:
+Panel de ajustes persistidos en `%APPDATA%\ESTICC\config.json` (sobrevive a reinstalaciones) con efecto inmediato sin recargar:
 - **Perfil de usuario** — 5 perfiles con comportamientos diferenciados:
   - *Estudiante* — modo básico por defecto, orientado al aprendizaje
   - *Persona Mayor* — tipografía aumentada y lenguaje simplificado
@@ -191,6 +191,8 @@ esticc/
 ├── backend/
 │   ├── main.py                        # Router IPC (stdin/stdout JSON newline-delimited)
 │   ├── requirements.txt               # psutil, feedparser
+│   ├── modulo_01_config/
+│   │   └── config.py                  # Lee/escribe config en %APPDATA%\ESTICC\config.json
 │   ├── modulo_02_auditoria/
 │   │   ├── escaner_puertos.py         # Conexiones TCP activas (psutil.net_connections)
 │   │   ├── escaner_procesos.py        # Procesos activos con métricas de CPU/RAM
@@ -222,7 +224,7 @@ esticc/
 │   │   └── hardware.css               # Grid de tarjetas de hardware + gauges SVG
 │   └── js/
 │       ├── i18n.js                    # Diccionarios ES/EN + función t() global
-│       ├── config.js                  # Carga/guarda config en localStorage; aplica tema, rol e idioma
+│       ├── config.js                  # Carga/guarda config vía IPC (%APPDATA%) con fallback localStorage; aplica tema, rol e idioma
 │       ├── background.js              # Escáner en segundo plano + banner de recordatorio
 │       ├── auditoria.js               # Renderers de los 5 módulos + sistema de toasts + withTimeout
 │       ├── simulador.js               # 8 escenarios de demo + interceptor de invoke()
@@ -266,13 +268,15 @@ Acciones disponibles:
 | `scan_hardware` | hardware | 30s | CPU, RAM, disco, batería, Event Log |
 | `radar_fetch` | radar | — | Descarga las últimas noticias RSS (6 feeds) |
 | `radar_correlate` | radar | — | Cruza noticias con el estado local |
-| `generate_report` | reportes | 150s | 5 escáneres en secuencia + puntuación de riesgo |
+| `generate_report` | reportes | 150s | 4 escáneres en paralelo + procesos en serie + puntuación de riesgo |
 | `historial_defender` | historial | — | Estado y eventos del log de Windows Defender |
 | `historial_esticc_get` | historial | — | Lee el historial persistido en %APPDATA%\ESTICC\ |
 | `historial_esticc_guardar` | historial | — | Añade una entrada al historial (política FIFO 100) |
 | `update_check` | actualizador | 15s | Consulta GitHub Releases API y compara versiones |
 | `update_download` | actualizador | 120s | Descarga el ZIP portable y prepara el script de sustitución |
 | `update_apply` | actualizador | — | Lanza el PS script desacoplado y señala que la app debe cerrarse |
+| `config_get` | config | — | Lee la configuración de %APPDATA%\ESTICC\config.json |
+| `config_set` | config | — | Escribe la configuración en %APPDATA%\ESTICC\config.json |
 
 > **Timeout UI**: si el sidecar Python no responde en ese tiempo, la UI muestra un aviso descriptivo y se desbloquea. El sidecar continúa ejecutándose en segundo plano y acepta la siguiente petición cuando termina.
 
@@ -291,10 +295,11 @@ Para obtener correlaciones precisas:
 
 ## Datos persistentes: %APPDATA%\ESTICC\
 
-ESTICC guarda el historial de sus propios escaneos en la carpeta de datos de aplicación del usuario:
+ESTICC guarda datos de usuario en la carpeta de datos de aplicación estándar de Windows:
 
 ```
 C:\Users\<NombreUsuario>\AppData\Roaming\ESTICC\
+├── config.json        ← Configuración del usuario (tema, rol, idioma, etc.)
 └── historial.json     ← Historial de escaneos (últimas 100 entradas)
 ```
 
@@ -333,6 +338,16 @@ La lista se limita a las **100 entradas más recientes** (política FIFO). Para 
 ---
 
 ## Changelog
+
+### [v0.5.0](https://github.com/yeagoblab/esticc/releases/tag/v0.5.0) — 2026-05-28
+- **feat:** configuración persistida en `%APPDATA%\ESTICC\config.json` — el tema, el rol y el idioma elegidos sobreviven ahora a reinstalaciones de la app (anteriormente solo se guardaban en `localStorage`)
+- **perf:** los 4 escáneres independientes del informe completo (defensas, puertos, autoinicio, parches) se ejecutan ahora en paralelo con `ThreadPoolExecutor` — el tiempo total del informe pasa de ser la suma de los 4 al tiempo del más lento
+- **fix:** umbral de alerta de CPU bajado de 30% a 50% y de RAM de 500 MB a 800 MB para eliminar falsos positivos en sistemas con Chrome, VS Code o antivirus activo
+- **fix:** el texto del hallazgo de CPU en el informe leía siempre `>80%` en lugar del umbral real; ahora se lee dinámicamente de `escaner_procesos.CPU_UMBRAL`
+- **fix:** `schtasks` en el escáner de autoinicio: timeout aumentado de 10 s a 45 s para evitar listas vacías en sistemas con muchas GPOs
+- **fix:** añadidas las claves `HKLM\Wow6432Node\Run` y `RunOnce` al escáner de autoinicio para detectar persistencia de malware de 32 bits en sistemas de 64 bits
+- **fix:** regex de extracción de puertos en el radar OSINT acotada para no capturar timestamps (`10:30`) ni estadísticas (`2024:18000`) como números de puerto
+- **fix:** `PUERTOS_SOSPECHOSOS` centralizado en `escaner_puertos.py` (eliminada la copia duplicada en `generador.py`); el panel de Puertos ahora recibe el campo `sospechoso` en cada conexión sin necesidad de generar un informe completo
 
 ### [v0.4.1](https://github.com/yeagoblab/esticc/releases/tag/v0.4.1) — 2026-05-28
 - **feat:** actualización in-app desde el panel de Configuración — comprueba la versión en GitHub, muestra las novedades, descarga el ZIP y reemplaza los binarios automáticamente tras cerrar la app (sin permisos de administrador)
