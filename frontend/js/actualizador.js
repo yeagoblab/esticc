@@ -178,9 +178,12 @@
     try {
       await invoke('update_apply', { ps_path: _psPath });
       setEstado('ok', 'Actualización iniciada. Cerrando ESTICC…');
-      // Dar 800 ms para que el mensaje sea visible antes de cerrar.
-      // close_app es un comando Rust personalizado (no depende del allowlist de tauri.conf.json).
-      setTimeout(() => invoke('close_app').catch(() => window.close()), 800);
+      // close_app es un comando Rust registrado directamente en invoke_handler,
+      // NO una acción del sidecar Python — hay que llamarlo con su nombre real,
+      // no a través del helper invoke() que siempre apunta al comando 'audit'.
+      setTimeout(() => {
+        window.__TAURI__.tauri.invoke('close_app').catch(() => window.close());
+      }, 800);
     } catch (e) {
       setEstado('error', `Error al aplicar: ${e}`);
       setBtnInstalar(true, true);
