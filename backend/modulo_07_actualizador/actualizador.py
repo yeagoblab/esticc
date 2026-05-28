@@ -137,19 +137,26 @@ def download_and_prepare(url_zip: str) -> dict:
     esticc_dst  = app_dir / "ESTICC.exe"
     backend_dst = app_dir / "backend.exe"
 
-    # Script PowerShell: espera a que ESTICC termine, copia, limpia y relanza
+    # Script PowerShell: espera a que ESTICC termine, copia, valida, limpia y relanza.
+    # - $ok valida que ambas copias tuvieron éxito antes de borrar el directorio temporal.
+    # - Si la copia falla (archivo bloqueado, permisos), el temporal se conserva y ESTICC
+    #   no se relanza, evitando lanzar una versión corrupta o la versión antigua sin aviso.
     ps_script = f"""
 $waited = 0
 while ((Get-Process -Name 'ESTICC' -ErrorAction SilentlyContinue) -and $waited -lt 30) {{
     Start-Sleep -Seconds 1
     $waited++
 }}
+$ok = $false
 try {{
-    Copy-Item -Path '{esticc_new}'  -Destination '{esticc_dst}'  -Force
-    Copy-Item -Path '{backend_new}' -Destination '{backend_dst}' -Force
+    Copy-Item -Path '{esticc_new}'  -Destination '{esticc_dst}'  -Force -ErrorAction Stop
+    Copy-Item -Path '{backend_new}' -Destination '{backend_dst}' -Force -ErrorAction Stop
+    $ok = $true
 }} catch {{}}
-Remove-Item -Path '{tmp_dir}' -Recurse -Force -ErrorAction SilentlyContinue
-Start-Process -FilePath '{esticc_dst}'
+if ($ok) {{
+    Remove-Item -Path '{tmp_dir}' -Recurse -Force -ErrorAction SilentlyContinue
+    Start-Process -FilePath '{esticc_dst}'
+}}
 """.strip()
 
     ps_path.write_text(ps_script, encoding="utf-8")

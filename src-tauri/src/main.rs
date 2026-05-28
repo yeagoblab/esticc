@@ -35,6 +35,16 @@ struct AppState {
     pending: PendingMap,                       // Mapa ID → canal de respuesta para peticiones en vuelo
 }
 
+// ── Comando de cierre ─────────────────────────────────────────────────────────
+
+// Los comandos Rust personalizados no requieren entradas en el allowlist de tauri.conf.json.
+// app.exit(0) termina el proceso limpiamente, lo que permite al PS script de actualización
+// detectar que ESTICC cerró y proceder con la sustitución de binarios.
+#[tauri::command]
+fn close_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 // ── Comando Tauri (invocable desde JavaScript) ─────────────────────────────────
 
 // #[tauri::command]: registra esta función como un comando invocable con window.__TAURI__.tauri.invoke()
@@ -221,8 +231,8 @@ fn main() {
 
             Ok(())
         })
-        // Registrar el comando `audit` como handler invocable desde JavaScript
-        .invoke_handler(tauri::generate_handler![audit])
+        // Registrar los comandos invocables desde JavaScript
+        .invoke_handler(tauri::generate_handler![audit, close_app])
         .run(tauri::generate_context!())  // Cargar tauri.conf.json y arrancar el event loop de la UI
         .expect("Error al iniciar ESTICC.");
 }
