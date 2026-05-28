@@ -6,11 +6,19 @@ Protocolo:
   Entrada:  {"id": "uuid", "action": "scan_ports"}
             {"id": "uuid", "action": "radar_correlate", "context": {...}}
   Salida:   {"id": "uuid", "result": {...}}  o  {"id": "uuid", "error": "..."}
+
+Concurrencia:
+  Cada petición se despacha en un hilo separado via ThreadPoolExecutor.
+  Esto permite que scan_ports (rápido) responda mientras scan_patches (lento)
+  sigue ejecutándose, evitando timeouts artificiales en la UI.
+  El stdout_lock garantiza que las respuestas JSON no se entrelacen.
 """
 from __future__ import annotations  # Permite anotaciones de tipo modernas en Python 3.8/3.9
 
-import sys   # Acceso a stdin/stdout del proceso
-import json  # Serialización y deserialización de mensajes JSON
+import sys       # Acceso a stdin/stdout del proceso
+import json      # Serialización y deserialización de mensajes JSON
+import threading # Lock para escritura thread-safe en stdout
+from concurrent.futures import ThreadPoolExecutor  # Ejecución concurrente de escáneres
 
 # Importamos los 5 módulos de auditoría local (cada uno es un archivo .py independiente)
 from modulo_02_auditoria import (
@@ -64,57 +72,43 @@ ACCIONES_CONOCIDAS: set[str] = set(ACCIONES_SIMPLES) | {
 }
 
 
-def enviar(mensaje: dict) -> None:
-    """Serializa el mensaje a JSON y lo escribe en stdout con flush inmediato."""
-    # ensure_ascii=True: solo bytes ASCII al pipe → evita errores de codepage en Windows
-    print(json.dumps(mensaje, ensure_ascii=True), flush=True)
-
-
 def main() -> None:
-    """Bucle principal del sidecar: lee peticiones línea a línea y responde."""
+    """Bucle principal del sidecar: lee peticiones línea a línea y las despacha en hilos."""
 
     # Forzar UTF-8 en stdin y stdout independientemente del codepage del sistema operativo
     # Sin esto, Windows usa CP1252 por defecto y el pipe falla con caracteres no ASCII
     sys.stdin.reconfigure(encoding='utf-8')
-    sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)  # line_buffering=True: flush automático en cada \n
+    sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
 
-    # Bucle infinito: cada iteración procesa una petición de Rust
-    for linea in sys.stdin:
-        linea = linea.strip()  # Eliminar espacios y saltos de línea
+    # Lock que serializa las escrituras a stdout: sin él, dos hilos podrían entrelazar
+    # sus respuestas JSON y Rust recibiría líneas inválidas.
+    stdout_lock = threading.Lock()
 
-        if not linea:          # Ignorar líneas vacías (puede haber pings del heartbeat)
-            continue
+    def enviar(mensaje: dict) -> None:
+        """Serializa el mensaje a JSON y lo escribe en stdout de forma thread-safe."""
+        linea = json.dumps(mensaje, ensure_ascii=True)
+        with stdout_lock:
+            print(linea, flush=True)
 
-        # Intentar parsear el JSON recibido desde Rust
-        try:
-            req = json.loads(linea)  # Convierte el string JSON en un dict de Python
-        except json.JSONDecodeError as e:
-            # Si el JSON está malformado, responder con error sin crashear el proceso
-            enviar({"id": None, "error": f"JSON inválido: {e}"})
-            continue
+    def despachar(req: dict) -> None:
+        """Ejecuta la acción de una petición y envía la respuesta. Se llama en un hilo."""
+        req_id = req.get("id")
+        action = req.get("action", "")
 
-        req_id = req.get("id")      # ID único de la petición (correlaciona respuesta con Rust)
-        action = req.get("action", "")  # Nombre de la acción a ejecutar
-
-        # Rechazar acciones desconocidas antes de intentar ejecutarlas
         if action not in ACCIONES_CONOCIDAS:
             enviar({"id": req_id, "error": f"Acción desconocida: '{action}'"})
-            continue
+            return
 
         try:
             if action == "radar_correlate":
-                # radar_correlate necesita el campo "context" del request JSON
-                # que contiene: { "noticias": [...], "puertos": [...], "procesos": [...] }
-                context = req.get("context", {})  # Si no viene context, usar dict vacío
+                context  = req.get("context", {})
                 resultado = correlacion.run(context)
             elif action == "historial_esticc_guardar":
-                entrada = req.get("entrada", {})                    # Dict con la entrada a persistir
+                entrada  = req.get("entrada", {})
                 resultado = historial_esticc.guardar(entrada)
             elif action == "scan_hardware":
-                # muestreo: segundos de bloqueo para medir CPU y disco con precisión real
-                # Rust/JS envían { payload: { muestreo: 3 } } que el Rust router fusiona en el JSON
-                muestreo = int(req.get("muestreo", 3))              # Default 3 s (balanceado)
-                resultado = escaner_hardware.run(muestreo=muestreo) # Escanear hardware completo
+                muestreo = int(req.get("muestreo", 3))
+                resultado = escaner_hardware.run(muestreo=muestreo)
             elif action == "update_download":
                 url_zip  = req.get("url_zip", "")
                 resultado = actualizador.download_and_prepare(url_zip)
@@ -122,16 +116,33 @@ def main() -> None:
                 ps_path  = req.get("ps_path", "")
                 resultado = actualizador.apply_update(ps_path)
             else:
-                # El resto de acciones no necesitan datos extra → llamada directa sin args
                 resultado = ACCIONES_SIMPLES[action]()
 
-            # Enviar resultado exitoso: Rust busca el campo "result" para resolver la promesa
             enviar({"id": req_id, "result": resultado})
 
         except Exception as e:
-            # Capturar cualquier error del escáner y devolverlo como error IPC
-            # Esto evita que un escáner crashee todo el sidecar
             enviar({"id": req_id, "error": str(e)})
+
+    # max_workers=8: suficiente para atender todos los paneles a la vez sin saturar el sistema.
+    # Los escáneres más pesados (scan_patches, generate_report) bloquean su hilo pero no
+    # impiden que otros escáneres rápidos (scan_ports, scan_processes) respondan de inmediato.
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        for linea in sys.stdin:
+            linea = linea.strip()
+
+            if not linea:
+                continue
+
+            try:
+                req = json.loads(linea)
+            except json.JSONDecodeError as e:
+                enviar_error = json.dumps({"id": None, "error": f"JSON inválido: {e}"}, ensure_ascii=True)
+                with stdout_lock:
+                    print(enviar_error, flush=True)
+                continue
+
+            # Enviar la petición al pool; el hilo lector de stdin no se bloquea
+            pool.submit(despachar, req)
 
 
 if __name__ == "__main__":

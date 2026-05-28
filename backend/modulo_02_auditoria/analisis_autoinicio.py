@@ -55,7 +55,7 @@ def _tareas_programadas() -> list[dict]:
             ["schtasks", "/query", "/fo", "CSV", "/v"],
             capture_output=True,  # Captura stdout y stderr sin mostrarlos en consola
             text=True,            # Decodifica la salida como texto (no bytes)
-            timeout=10,           # Máximo 10 segundos (schtasks puede ser lento en sistemas con muchas tareas)
+            timeout=45,           # 45s: schtasks puede tardar 30s+ en sistemas con muchas GPOs activas
             encoding="latin-1"    # schtasks en Windows a veces usa Latin-1 en lugar de UTF-8
         )
         tareas = []

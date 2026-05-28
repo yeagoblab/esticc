@@ -22,7 +22,7 @@ from datetime import datetime, timezone  # Timestamp UTC del momento del informe
 from modulo_02_auditoria import (
     estado_defensas,     # Firewall, Defender, BitLocker
     escaner_puertos,     # Conexiones TCP activas
-    escaner_procesos,    # Procesos activos con métricas de CPU/RAM
+    escaner_procesos,    # Procesos activos con métricas de CPU/RAM (también expone CPU_UMBRAL)
     analisis_autoinicio, # Entradas de registro Run y tareas programadas
     verificador_parches, # Actualizaciones pendientes de Windows
 )
@@ -200,7 +200,7 @@ def _calcular_riesgo(
         hallazgos.append({
             "nivel":     "medio",
             "categoria": "Procesos",
-            "texto":     f"{len(cpu_alta)} proceso(s) con consumo de CPU elevado (>80%)",
+            "texto":     f"{len(cpu_alta)} proceso(s) con consumo de CPU elevado (>{int(escaner_procesos.CPU_UMBRAL)}%)",
         })
 
     # ── BLOQUE 4: Autoinicio (peso máximo 15 pts) ─────────────────────────────

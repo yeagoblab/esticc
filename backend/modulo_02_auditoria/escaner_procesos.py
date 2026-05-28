@@ -7,8 +7,8 @@ from datetime import datetime, timezone  # Timestamp UTC en la respuesta
 import psutil                        # Acceso multiplataforma a procesos del sistema operativo
 
 # Umbrales de alerta: si un proceso supera estos valores se marca como "a revisar"
-CPU_UMBRAL    = 30.0   # % de CPU: por encima de 30% se considera elevado
-RAM_UMBRAL_MB = 500    # MB de RAM: por encima de 500 MB se considera elevado
+CPU_UMBRAL    = 50.0   # % de CPU: por encima de 50% sostenido se considera elevado
+RAM_UMBRAL_MB = 800    # MB de RAM: por encima de 800 MB se considera elevado
 
 
 def _info_proceso(proc: psutil.Process) -> dict | None:
