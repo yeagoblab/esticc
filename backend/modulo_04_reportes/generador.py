@@ -21,24 +21,11 @@ from datetime import datetime, timezone  # Timestamp UTC del momento del informe
 # llamarlos directamente es más rápido y sencillo.
 from modulo_02_auditoria import (
     estado_defensas,     # Firewall, Defender, BitLocker
-    escaner_puertos,     # Conexiones TCP activas
+    escaner_puertos,     # Conexiones TCP activas (también expone PUERTOS_SOSPECHOSOS)
     escaner_procesos,    # Procesos activos con métricas de CPU/RAM (también expone CPU_UMBRAL)
     analisis_autoinicio, # Entradas de registro Run y tareas programadas
     verificador_parches, # Actualizaciones pendientes de Windows
 )
-
-# Puertos conocidos por ser usados por herramientas de acceso remoto maliciosas:
-# 4444  → Metasploit (framework de pentesting/exploits)
-# 31337 → "Elite" (nombre clásico de backdoors en la cultura hacker)
-# 1337  → Variante de "elite", usado por RATs simples
-# 9999  → Puerto genérico frecuente en C2 caseros
-# 6666/6667 → IRC (usado por botnets para recibir comandos)
-# 1080  → SOCKS proxy (puede indicar tunelado de tráfico malicioso)
-# 4899  → Radmin (herramienta de acceso remoto legítima pero frecuentemente explotada)
-# 5900  → VNC sin cifrar (acceso remoto gráfico sin autenticación fuerte)
-# 5555  → Android Debug Bridge (ADB) expuesto en red
-# 7777  → Puerto genérico de muchos RATs
-_PUERTOS_SOSPECHOSOS = {4444, 31337, 1337, 9999, 6666, 6667, 1080, 4899, 5900, 5555, 7777}
 
 
 def _data(resultado: dict) -> dict | list:
@@ -157,7 +144,7 @@ def _calcular_riesgo(
                 pass  # Ignorar si el puerto no es un número válido
 
     # Intersección de conjuntos: puertos abiertos localmente que están en la lista negra
-    for puerto in sorted(puertos_locales & _PUERTOS_SOSPECHOSOS):
+    for puerto in sorted(puertos_locales & escaner_puertos.PUERTOS_SOSPECHOSOS):
         # Cada puerto sospechoso suma 20 puntos: uno solo puede elevar al nivel "alto"
         puntos += 20
         hallazgos.append({

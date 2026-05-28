@@ -7,7 +7,7 @@ import subprocess                      # Para ejecutar schtasks.exe como subproc
 import winreg                          # Acceso nativo al Registro de Windows (solo en Windows)
 from datetime import datetime, timezone
 
-# Las 4 claves del registro donde Windows carga programas al inicio
+# Las 6 claves del registro donde Windows carga programas al inicio
 # Tupla: (hive, subclave, etiqueta_legible)
 CLAVES_REGISTRO = [
     (winreg.HKEY_CURRENT_USER,  r"Software\Microsoft\Windows\CurrentVersion\Run",     "HKCU\\Run"),
@@ -18,6 +18,11 @@ CLAVES_REGISTRO = [
     # HKLM\Run: autoinicio para todos los usuarios (requiere admin para escribir — red flag si aparece malware)
     (winreg.HKEY_LOCAL_MACHINE, r"Software\Microsoft\Windows\CurrentVersion\RunOnce", "HKLM\\RunOnce"),
     # HKLM\RunOnce: igual que HKLM\Run pero de un solo uso
+    (winreg.HKEY_LOCAL_MACHINE, r"Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Run",     "HKLM\\Wow64\\Run"),
+    # WoW64\Run: donde el malware de 32 bits en sistemas de 64 bits instala su persistencia.
+    # El proceso Python (64-bit) no accede a estas claves a través de las rutas estándar.
+    (winreg.HKEY_LOCAL_MACHINE, r"Software\Wow6432Node\Microsoft\Windows\CurrentVersion\RunOnce", "HKLM\\Wow64\\RunOnce"),
+    # WoW64\RunOnce: equivalente de un solo uso para procesos de 32 bits
 ]
 
 

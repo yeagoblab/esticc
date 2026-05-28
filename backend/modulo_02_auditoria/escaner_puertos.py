@@ -6,6 +6,23 @@ import time                          # Para medir la duración del escaneo
 from datetime import datetime, timezone  # Para incluir timestamp UTC en el resultado
 import psutil                        # Librería de sistema: lee información del SO sin permisos de admin
 
+# Puertos conocidos por ser usados habitualmente por herramientas de acceso remoto maliciosas.
+# Centralizado aquí para que tanto el panel de Puertos como el generador de informes
+# usen la misma lista sin duplicarla.
+PUERTOS_SOSPECHOSOS: frozenset[int] = frozenset({
+    4444,   # Metasploit default (RAT / reverse shell)
+    31337,  # "Elite" — nombre clásico de backdoors
+    1337,   # Variante "elite", usado por RATs simples
+    9999,   # Puerto genérico frecuente en C2 caseros
+    6666,   # IRC (usado por botnets para recibir comandos)
+    6667,   # IRC alternativo
+    1080,   # SOCKS proxy (tunelado de tráfico malicioso)
+    4899,   # Radmin (herramienta de acceso remoto frecuentemente explotada)
+    5900,   # VNC sin cifrar (acceso remoto gráfico sin autenticación fuerte)
+    5555,   # Android Debug Bridge (ADB) expuesto en red
+    7777,   # Puerto genérico de muchos RATs
+})
+
 
 def run() -> dict:
     """Escanea todas las conexiones TCP activas y devuelve el resultado IPC estándar."""
@@ -30,13 +47,17 @@ def run() -> dict:
             laddr = f"{c.laddr.ip}:{c.laddr.port}" if c.laddr else ""  # Dirección local (siempre presente)
             raddr = f"{c.raddr.ip}:{c.raddr.port}" if c.raddr else ""  # Dirección remota (vacía si LISTEN)
 
+            # Extraer el número de puerto local para comparar con la lista negra
+            puerto_local = c.laddr.port if c.laddr else 0
+
             # Añadir un diccionario por cada conexión con todos sus campos
             conexiones.append({
-                "pid":     c.pid,     # ID del proceso propietario del socket
-                "proceso": proceso,   # Nombre del ejecutable (ej: "chrome.exe")
-                "local":   laddr,     # Puerto local (ej: "0.0.0.0:445")
-                "remoto":  raddr,     # IP y puerto remotos si hay conexión activa
-                "estado":  c.status,  # Estado TCP: LISTEN, ESTABLISHED, TIME_WAIT...
+                "pid":        c.pid,     # ID del proceso propietario del socket
+                "proceso":    proceso,   # Nombre del ejecutable (ej: "chrome.exe")
+                "local":      laddr,     # Puerto local (ej: "0.0.0.0:445")
+                "remoto":     raddr,     # IP y puerto remotos si hay conexión activa
+                "estado":     c.status,  # Estado TCP: LISTEN, ESTABLISHED, TIME_WAIT...
+                "sospechoso": puerto_local in PUERTOS_SOSPECHOSOS,  # True si el puerto está en la lista negra
             })
 
         # Ordenar primero por estado (ESTABLISHED antes que LISTEN) y luego por nombre de proceso

@@ -33,9 +33,18 @@ RE_PUERTO   = re.compile(r'\bport[s]?\s+(\d{2,5})\b', re.IGNORECASE)
 # \b: límite de palabra para no capturar "report 443"
 # \d{2,5}: números de 2 a 5 dígitos (puertos válidos: 1-65535)
 
-# Regex para extraer puertos escritos como ":445" en texto de noticia
-RE_DOS_PTOS = re.compile(r':(\d{2,5})\b')
-# Captura el número después de dos puntos, típico en URLs y logs
+# Regex para extraer puertos escritos como ":445" solo cuando el contexto indica
+# que es realmente un puerto: precedido por una IP, hostname, o la palabra "port".
+# Versión anterior r':(\d{2,5})\b' era demasiado amplia y capturaba horas (10:30),
+# datos estadísticos (2024:18000) y versiones de software.
+RE_DOS_PTOS = re.compile(
+    r'(?:'
+    r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'  # IPv4 literal: 192.168.1.1:445
+    r'|localhost'                             # localhost:8080
+    r'|0\.0\.0\.0'                            # 0.0.0.0:4444
+    r'|(?:tcp|udp)(?:/ip)?'                   # tcp:445, udp/ip:53
+    r'):(\d{2,5})\b'
+)
 
 # Regex para extraer identificadores CVE (Common Vulnerabilities and Exposures)
 RE_CVE = re.compile(r'CVE-\d{4}-\d{4,}', re.IGNORECASE)
