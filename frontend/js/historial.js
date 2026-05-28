@@ -121,7 +121,7 @@
       try {
         // Llamada IPC al sidecar Python: acción "historial_esticc_guardar"
         // La acción especial necesita el campo "entrada" en el payload (no es acción simple)
-        await invoke('audit', { action: 'historial_esticc_guardar', entrada });
+        await invoke('audit', { action: 'historial_esticc_guardar', payload: { entrada } });
 
         // Si el panel de historial está abierto, refrescarlo para mostrar el nuevo evento
         const panel = document.getElementById('panel-historial');

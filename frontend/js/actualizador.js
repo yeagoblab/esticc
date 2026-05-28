@@ -21,12 +21,17 @@
   // ── Helper: invoke IPC (misma firma que en auditoria.js) ──────────────────
 
   /**
-   * invoke(action, extra) — Envía una petición al sidecar Python y resuelve con el resultado.
-   * Reutiliza window.__TAURI__.tauri.invoke si está disponible; si no, lanza error de entorno.
+   * invoke(action, payload) — Envía una petición al sidecar Python y resuelve con el resultado.
+   * Los campos extra deben ir en `payload` para que Rust los fusione en el mensaje IPC:
+   *   invoke('update_download', { url_zip: '...' })
+   *   → Rust recibe payload={url_zip:'...'} y lo mezcla en el JSON enviado a Python.
+   * Ver main.rs: `if let Some(p) = payload { obj.extend(p) }`
    */
-  function invoke(action, extra = {}) {
+  function invoke(action, payload = {}) {
     if (!window.__TAURI__) return Promise.reject(new Error('Tauri no disponible'));
-    return window.__TAURI__.tauri.invoke('audit', { action, ...extra });
+    const args = { action };
+    if (Object.keys(payload).length) args.payload = payload;
+    return window.__TAURI__.tauri.invoke('audit', args);
   }
 
   // ── Selectores DOM (resueltos una vez cuando el DOM está listo) ───────────
