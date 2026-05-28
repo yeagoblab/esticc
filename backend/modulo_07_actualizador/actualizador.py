@@ -150,6 +150,11 @@ while ((Get-Process -Name 'ESTICC' -ErrorAction SilentlyContinue) -and $waited -
     Start-Sleep -Seconds 1
     $waited++
 }}
+$waited = 0
+while ((Get-Process -Name 'backend' -ErrorAction SilentlyContinue) -and $waited -lt 10) {{
+    Start-Sleep -Seconds 1
+    $waited++
+}}
 $ok = $false
 try {{
     Copy-Item -Path '{esticc_new}'  -Destination '{esticc_dst}'  -Force -ErrorAction Stop
