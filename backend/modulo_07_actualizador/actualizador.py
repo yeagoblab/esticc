@@ -128,7 +128,10 @@ def download_and_prepare(url_zip: str) -> dict:
                 with open(target, "wb") as fout:
                     shutil.copyfileobj(source, fout)
 
-    zip_path.unlink()  # El ZIP ya no se necesita; liberar espacio
+    try:
+        zip_path.unlink()  # Liberar espacio; puede fallar si Defender lo escanea, no es crítico
+    except OSError:
+        pass  # El PS script borrará el directorio temporal completo al finalizar
 
     app_dir     = _dir_app()
     ps_path     = tmp_dir / "apply_update.ps1"
