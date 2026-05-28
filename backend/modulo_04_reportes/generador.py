@@ -9,11 +9,20 @@ Diseño deliberado: este módulo llama a los otros módulos directamente
 Python. Hacerlo vía IPC añadiría 5 round-trips Rust→Python innecesarios.
 
 Flujo de ejecución:
-  run()  →  5x escaner.run()  →  _data()  →  _calcular_riesgo()  →  dict IPC
+  run()  →  4 escáneres en paralelo + escaner_procesos en serie
+         →  _data()  →  _calcular_riesgo()  →  dict IPC
+
+Nota de concurrencia:
+  estado_defensas, escaner_puertos, analisis_autoinicio y verificador_parches
+  se lanzan en paralelo con ThreadPoolExecutor. El tiempo total baja de la
+  suma de los 4 al tiempo del más lento (verificador_parches, 5-60s).
+  escaner_procesos debe quedar en serie porque su time.sleep(0.3) de muestreo
+  de CPU no libera el GIL y no se beneficia de threads.
 """
 from __future__ import annotations  # Permite "dict | None" en Python 3.8 y 3.9
 
 import socket                        # Para obtener el nombre del equipo (hostname)
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone  # Timestamp UTC del momento del informe
 
 # Importamos directamente los 5 escáneres de auditoría local.
@@ -268,15 +277,27 @@ def run() -> dict:
     except Exception:
         hostname = "Equipo local"  # Fallback si el SO no devuelve el hostname
 
-    # Ejecutar los 5 escáneres en secuencia.
-    # NOTA: escaner_procesos hace internamente un time.sleep(0.3) para el muestreo de CPU.
-    # Ejecutarlos en paralelo con threads no ahorraría tiempo porque el cuello de botella
-    # es ese sleep, no la CPU del proceso Python.
-    res_defensas   = estado_defensas.run()    # ~1-2s (PowerShell CIM)
-    res_puertos    = escaner_puertos.run()    # <1s (psutil.net_connections)
-    res_procesos   = escaner_procesos.run()   # ~0.5s (psutil + sleep 300ms)
-    res_autoinicio = analisis_autoinicio.run()# ~2s (registro + schtasks)
-    res_parches    = verificador_parches.run()# 5-60s dependiendo de WUA/PSWindowsUpdate
+    # Los 4 escáneres lentos/independientes se lanzan en paralelo.
+    # verificador_parches puede tardar hasta 60s → marcar el cuello de botella real.
+    # escaner_procesos se ejecuta en serie porque su time.sleep(0.3) de muestreo
+    # de CPU no se beneficia de threads (no hay I/O que libere el GIL).
+    _paralelos = {
+        "defensas":   estado_defensas.run,    # ~1-2s (PowerShell CIM)
+        "puertos":    escaner_puertos.run,    # <1s  (psutil.net_connections)
+        "autoinicio": analisis_autoinicio.run,# ~2s  (registro + schtasks)
+        "parches":    verificador_parches.run,# 5-60s (WUA/PSWindowsUpdate)
+    }
+    resultados_paralelos: dict = {}
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        futures = {pool.submit(fn): nombre for nombre, fn in _paralelos.items()}
+        for fut in as_completed(futures):
+            resultados_paralelos[futures[fut]] = fut.result()
+
+    res_defensas   = resultados_paralelos["defensas"]
+    res_puertos    = resultados_paralelos["puertos"]
+    res_autoinicio = resultados_paralelos["autoinicio"]
+    res_parches    = resultados_paralelos["parches"]
+    res_procesos   = escaner_procesos.run()   # ~0.5s (psutil + sleep 300ms) — serie
 
     # Extraer el campo 'data' de cada resultado, con fallback a tipo vacío si hubo error
     d_defensas   = _data(res_defensas)
