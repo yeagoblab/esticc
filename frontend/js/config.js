@@ -2,10 +2,11 @@
  * config.js — Gestión de configuración de ESTICC.
  *
  * Responsabilidades:
- *  · Cargar la configuración guardada en localStorage al iniciar.
+ *  · Cargar la configuración guardada en %APPDATA%\ESTICC\config.json (via IPC) al iniciar.
+ *  · Fallback a localStorage si el sidecar no está disponible (modo simulador).
  *  · Aplicar el tema visual (oscuro/claro), el rol de usuario y el idioma al <body>.
  *  · Sincronizar el formulario del panel de Configuración con el estado guardado.
- *  · Guardar los cambios del formulario en localStorage cuando el usuario los confirma.
+ *  · Guardar los cambios vía IPC (config_set) y en localStorage como caché rápida.
  *  · Exponer window.ESTICC_CONFIG para que otros módulos puedan leer/escribir config.
  */
 
@@ -28,32 +29,55 @@
     recordatorio_dias: 7,              // Mostrar recordatorio si no se analiza en 7 días (una semana)
   };
 
-  // ── Carga y guardado en localStorage ────────────────────────────────────────
+  // ── Carga y guardado ─────────────────────────────────────────────────────────
 
   /**
-   * cargarConfig() — Lee la configuración de localStorage y la fusiona con los DEFAULTS.
-   * Object.assign({}, DEFAULTS, guardado) garantiza que si se añaden nuevas claves en el
-   * futuro, los usuarios con config antigua las recibirán con su valor por defecto.
+   * cargarConfigLocal() — Lee la configuración de localStorage (caché rápida y fallback).
    */
-  function cargarConfig() {
+  function cargarConfigLocal() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);  // Intentar leer el JSON guardado
-      // Si hay datos guardados, fusionarlos sobre los DEFAULTS; si no, devolver solo DEFAULTS
+      const raw = localStorage.getItem(STORAGE_KEY);
       return raw ? Object.assign({}, DEFAULTS, JSON.parse(raw)) : Object.assign({}, DEFAULTS);
     } catch (_) {
-      // JSON.parse puede lanzar SyntaxError si el dato está corrupto; devolver DEFAULTS como fallback
       return Object.assign({}, DEFAULTS);
     }
   }
 
   /**
-   * guardarConfig(cfg) — Serializa el objeto de configuración a JSON y lo persiste.
-   * El try/catch protege contra el error de localStorage lleno (QuotaExceededError).
+   * guardarConfigLocal(cfg) — Escribe la config en localStorage como caché.
    */
-  function guardarConfig(cfg) {
+  function guardarConfigLocal(cfg) {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));  // Serializar y guardar
-    } catch (_) {}  // Silenciar error de cuota: la app sigue funcionando con la config en memoria
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+    } catch (_) {}
+  }
+
+  /**
+   * cargarConfig() — Fuente primaria: %APPDATA%\ESTICC\config.json via IPC.
+   * Fallback síncrono a localStorage si el sidecar no responde (modo simulador).
+   * Devuelve una Promise<cfg> para poder await en DOMContentLoaded.
+   */
+  async function cargarConfig() {
+    try {
+      const resp = await window.__TAURI__.tauri.invoke('audit', { action: 'config_get' });
+      if (resp && resp.ok && resp.data && Object.keys(resp.data).length > 0) {
+        const cfg = Object.assign({}, DEFAULTS, resp.data);
+        guardarConfigLocal(cfg);  // Sincronizar caché localStorage
+        return cfg;
+      }
+    } catch (_) {}
+    // Fallback: localStorage (modo simulador o fallo del sidecar)
+    return cargarConfigLocal();
+  }
+
+  /**
+   * guardarConfig(cfg) — Escribe via IPC (persistente) y en localStorage (caché).
+   */
+  async function guardarConfig(cfg) {
+    guardarConfigLocal(cfg);  // Siempre escribir en localStorage (rápido, no falla)
+    try {
+      await window.__TAURI__.tauri.invoke('audit', { action: 'config_set', cfg });
+    } catch (_) {}  // Si el sidecar no está disponible, localStorage es suficiente
   }
 
   // ── Aplicar configuración al DOM ─────────────────────────────────────────────
@@ -249,12 +273,16 @@
 
   // ── Inicialización tras carga del DOM ────────────────────────────────────────
 
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
 
-    const cfg = cargarConfig();  // Leer config guardada (o DEFAULTS si es la primera vez)
-    applyAll(cfg);               // Aplicar tema, rol e idioma antes de renderizar nada visible
+    // Aplicar primero con caché local (síncrono) para evitar flash de tema incorrecto,
+    // luego sobrescribir con la config de %APPDATA% si difiere (puede cambiar tras reinstalación).
+    const cfgLocal = cargarConfigLocal();
+    applyAll(cfgLocal);
+    poblarFormulario(cfgLocal);
 
-    // Sincronizar el formulario del panel de Configuración con los valores cargados
+    const cfg = await cargarConfig();  // Leer desde %APPDATA% (async, puede tardar ~50ms)
+    applyAll(cfg);               // Re-aplicar si difiere de la caché local
     poblarFormulario(cfg);
 
     // ── Botones de grupo: respuesta inmediata al hacer clic ──────────────────────
@@ -279,10 +307,10 @@
     // ── Botón "Guardar cambios" ──────────────────────────────────────────────────
     const formBtn = document.getElementById('cfg-guardar-btn');
     if (formBtn) {
-      formBtn.addEventListener('click', () => {
-        const nueva = leerFormulario();  // Leer el estado actual de todos los controles
-        guardarConfig(nueva);            // Persistir en localStorage
-        applyAll(nueva);                 // Re-aplicar todo (especialmente rol, por si cambió)
+      formBtn.addEventListener('click', async () => {
+        const nueva = leerFormulario();   // Leer el estado actual de todos los controles
+        await guardarConfig(nueva);       // Persistir en %APPDATA% y en localStorage
+        applyAll(nueva);                  // Re-aplicar todo (especialmente rol, por si cambió)
 
         // Mostrar el mensaje "Configuración guardada" y desvanecerlo tras 2.2 segundos
         const feedback = document.getElementById('cfg-guardado-msg');
@@ -296,7 +324,14 @@
 
   // ── API pública ──────────────────────────────────────────────────────────────
   // Expuesto en window para que módulos externos (ej. background.js) puedan
-  // leer o escribir la configuración sin duplicar la lógica de STORAGE_KEY.
-  window.ESTICC_CONFIG = { cargar: cargarConfig, guardar: guardarConfig };
+  // leer o escribir la configuración sin duplicar la lógica de persistencia.
+  // cargar() → Promise<cfg>  (IPC + fallback localStorage)
+  // guardar(cfg) → Promise   (IPC + localStorage)
+  // cargarLocal() → cfg      (solo localStorage, síncrono — para uso en iframes/workers)
+  window.ESTICC_CONFIG = {
+    cargar:      cargarConfig,
+    guardar:     guardarConfig,
+    cargarLocal: cargarConfigLocal,
+  };
 
 })();  // IIFE: encapsula todo en un scope privado para no contaminar el namespace global

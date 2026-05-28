@@ -47,6 +47,9 @@ from modulo_06_hardware import escaner_hardware
 # Importamos el módulo de auto-actualización (GitHub Releases API)
 from modulo_07_actualizador import actualizador
 
+# Importamos el módulo de configuración persistente (%APPDATA%\ESTICC\config.json)
+from modulo_01_config import config as config_modulo
+
 # Diccionario acción → función: permite despachar sin if/elif explícitos
 # Las acciones simples no necesitan datos extra del request
 ACCIONES_SIMPLES: dict[str, callable] = {
@@ -57,9 +60,10 @@ ACCIONES_SIMPLES: dict[str, callable] = {
     "scan_patches":   verificador_parches.run,# Parches pendientes
     "radar_fetch":    lector_rss.run,         # Descarga de noticias RSS
     "generate_report":      generador.run,           # Informe consolidado (5 escáneres + riesgo)
-    "historial_defender":   historial_defender.run,  # Historial de análisis de Defender
-    "historial_esticc_get": historial_esticc.get,    # Historial de escaneos ESTICC (lectura)
-    "update_check":         actualizador.check_update, # Consulta GitHub Releases API
+    "historial_defender":   historial_defender.run,       # Historial de análisis de Defender
+    "historial_esticc_get": historial_esticc.get,         # Historial de escaneos ESTICC (lectura)
+    "update_check":         actualizador.check_update,    # Consulta GitHub Releases API
+    "config_get":           config_modulo.get,            # Lee config de %APPDATA%\ESTICC\config.json
 }
 
 # Conjunto de todas las acciones válidas, incluyendo las que tienen lógica especial
@@ -69,6 +73,7 @@ ACCIONES_CONOCIDAS: set[str] = set(ACCIONES_SIMPLES) | {
     "scan_hardware",           # Necesita el campo "muestreo" (segundos, default 3)
     "update_download",         # Necesita el campo "url_zip"
     "update_apply",            # Necesita el campo "ps_path"
+    "config_set",              # Necesita el campo "cfg" con el dict de configuración
 }
 
 
@@ -115,6 +120,9 @@ def main() -> None:
             elif action == "update_apply":
                 ps_path  = req.get("ps_path", "")
                 resultado = actualizador.apply_update(ps_path)
+            elif action == "config_set":
+                cfg_data = req.get("cfg", {})
+                resultado = config_modulo.set_config(cfg_data)
             else:
                 resultado = ACCIONES_SIMPLES[action]()
 
