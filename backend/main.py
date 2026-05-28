@@ -106,22 +106,22 @@ def main() -> None:
 
         try:
             if action == "radar_correlate":
-                context  = req.get("context", {})
+                context   = req.get("context", {})           # Noticias + puertos + procesos del sistema
                 resultado = correlacion.run(context)
             elif action == "historial_esticc_guardar":
-                entrada  = req.get("entrada", {})
+                entrada   = req.get("entrada", {})           # Dict con los datos del escaneo a guardar
                 resultado = historial_esticc.guardar(entrada)
             elif action == "scan_hardware":
-                muestreo = int(req.get("muestreo", 3))
+                muestreo  = int(req.get("muestreo", 3))      # Segundos de muestreo de CPU (default 3)
                 resultado = escaner_hardware.run(muestreo=muestreo)
             elif action == "update_download":
-                url_zip  = req.get("url_zip", "")
+                url_zip   = req.get("url_zip", "")           # URL del ZIP de la nueva versión en GitHub
                 resultado = actualizador.download_and_prepare(url_zip)
             elif action == "update_apply":
-                ps_path  = req.get("ps_path", "")
+                ps_path   = req.get("ps_path", "")           # Ruta al script PowerShell de instalación
                 resultado = actualizador.apply_update(ps_path)
             elif action == "config_set":
-                cfg_data = req.get("cfg", {})
+                cfg_data  = req.get("cfg", {})               # Dict completo de configuración del usuario
                 resultado = config_modulo.set_config(cfg_data)
             else:
                 resultado = ACCIONES_SIMPLES[action]()

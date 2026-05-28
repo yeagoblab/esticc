@@ -262,9 +262,12 @@ def run() -> dict:
     """
     Punto de entrada del módulo de reportes.
 
-    Ejecuta los 5 escáneres en secuencia (no en paralelo — psutil necesita
-    un intervalo de tiempo para medir CPU correctamente), calcula el riesgo
-    global y devuelve el informe consolidado en formato IPC estándar.
+    Ejecuta los 5 escáneres de auditoría, calcula el riesgo global y devuelve
+    el informe consolidado en formato IPC estándar.
+
+    4 escáneres corren en paralelo (ThreadPoolExecutor); escaner_procesos
+    queda en serie porque su time.sleep(0.3) de muestreo de CPU no libera
+    el GIL y no se beneficia de concurrencia basada en threads.
 
     La respuesta incluye todos los datos crudos de los escáneres para que
     el frontend pueda mostrar el resumen por módulo sin hacer llamadas
