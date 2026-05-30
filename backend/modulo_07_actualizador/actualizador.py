@@ -1,14 +1,14 @@
-"""
-Módulo de auto-actualización de ESTICC.
+﻿"""
+MÃ³dulo de auto-actualizaciÃ³n de ESTICC.
 
 Flujo:
-  1. check_update()        → consulta GitHub API, compara semver, devuelve metadatos
-  2. download_and_prepare() → descarga el ZIP de la release, extrae los .exe,
-                              escribe el script PowerShell de sustitución en %TEMP%
-  3. apply_update()         → lanza el PS script en proceso separado (DETACHED_PROCESS)
+  1. check_update()        â†’ consulta GitHub API, compara semver, devuelve metadatos
+  2. download_and_prepare() â†’ descarga el ZIP de la release, extrae los .exe,
+                              escribe el script PowerShell de sustituciÃ³n en %TEMP%
+  3. apply_update()         â†’ lanza el PS script en proceso separado (DETACHED_PROCESS)
                               y devuelve {cerrar: True} para que el frontend cierre la app
 
-El reemplazo real ocurre *después* de que ESTICC.exe termine: el PS script espera
+El reemplazo real ocurre *despuÃ©s* de que ESTICC.exe termine: el PS script espera
 hasta 30 s a que el proceso desaparezca antes de copiar los nuevos binarios.
 """
 from __future__ import annotations
@@ -24,25 +24,25 @@ import urllib.request
 from pathlib import Path
 
 
-VERSION_ACTUAL = "0.5.0"             # Actualizar junto con tauri.conf.json y Cargo.toml en cada release
+VERSION_ACTUAL = "0.5.2"             # Actualizar junto con tauri.conf.json y Cargo.toml en cada release
 REPO           = "yeagoblab/esticc"
 API_URL        = f"https://api.github.com/repos/{REPO}/releases/latest"
 USER_AGENT     = f"ESTICC/{VERSION_ACTUAL}"
 
 
-# ── Helpers internos ─────────────────────────────────────────────────────────
+# â”€â”€ Helpers internos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _dir_app() -> Path:
     """Devuelve el directorio donde residen ESTICC.exe y backend.exe."""
     if getattr(sys, 'frozen', False):
-        # En producción: backend.exe está en el mismo dir que ESTICC.exe
+        # En producciÃ³n: backend.exe estÃ¡ en el mismo dir que ESTICC.exe
         return Path(sys.executable).parent
     # En desarrollo: carpeta portable de referencia (ajustar si cambia la estructura)
     return Path(__file__).parent.parent.parent / "ESTICC_portable"
 
 
 def _parse_version(v: str) -> tuple[int, ...]:
-    """Convierte 'v0.4.1' o '0.4.1' en (0, 4, 1) para comparación numérica."""
+    """Convierte 'v0.4.1' o '0.4.1' en (0, 4, 1) para comparaciÃ³n numÃ©rica."""
     v = v.lstrip("v").strip()
     try:
         return tuple(int(x) for x in v.split("."))
@@ -50,7 +50,7 @@ def _parse_version(v: str) -> tuple[int, ...]:
         return (0,)
 
 
-# ── Acciones IPC ─────────────────────────────────────────────────────────────
+# â”€â”€ Acciones IPC â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def check_update() -> dict:
     """
@@ -58,9 +58,9 @@ def check_update() -> dict:
 
     Devuelve:
       {
-        "actualizar":     bool,   # True si hay versión más nueva
+        "actualizar":     bool,   # True si hay versiÃ³n mÃ¡s nueva
         "version_actual": str,
-        "version_nueva":  str,    # Tag de la última release (ej. "v0.4.1")
+        "version_nueva":  str,    # Tag de la Ãºltima release (ej. "v0.4.1")
         "novedades":      str,    # body markdown de la release (primeras 800 chars)
         "url_zip":        str,    # URL del asset portable ZIP para descargar
       }
@@ -94,12 +94,12 @@ def check_update() -> dict:
 
 def download_and_prepare(url_zip: str) -> dict:
     """
-    Descarga el ZIP de la release y prepara el script de sustitución.
+    Descarga el ZIP de la release y prepara el script de sustituciÃ³n.
 
     Pasos:
       1. Descarga el ZIP a un directorio temporal
       2. Extrae ESTICC.exe y backend.exe del ZIP
-      3. Escribe un script PowerShell que hará la sustitución tras el cierre
+      3. Escribe un script PowerShell que harÃ¡ la sustituciÃ³n tras el cierre
 
     Devuelve:
       { "ps_path": "<ruta absoluta al .ps1>" }
@@ -129,9 +129,9 @@ def download_and_prepare(url_zip: str) -> dict:
                     shutil.copyfileobj(source, fout)
 
     try:
-        zip_path.unlink()  # Liberar espacio; puede fallar si Defender lo escanea, no es crítico
+        zip_path.unlink()  # Liberar espacio; puede fallar si Defender lo escanea, no es crÃ­tico
     except OSError:
-        pass  # El PS script borrará el directorio temporal completo al finalizar
+        pass  # El PS script borrarÃ¡ el directorio temporal completo al finalizar
 
     app_dir     = _dir_app()
     ps_path     = tmp_dir / "apply_update.ps1"
@@ -140,21 +140,19 @@ def download_and_prepare(url_zip: str) -> dict:
     esticc_dst  = app_dir / "ESTICC.exe"
     backend_dst = app_dir / "backend.exe"
 
-    # Script PowerShell: espera a que ESTICC termine, copia, valida, limpia y relanza.
-    # - $ok valida que ambas copias tuvieron éxito antes de borrar el directorio temporal.
-    # - Si la copia falla (archivo bloqueado, permisos), el temporal se conserva y ESTICC
-    #   no se relanza, evitando lanzar una versión corrupta o la versión antigua sin aviso.
+    # Script PowerShell: espera a que ESTICC termine, mata backend (huÃ©rfano â€” el OS no lo
+    # cierra automÃ¡ticamente cuando ESTICC.exe sale), copia los binarios y relanza.
+    # - backend.exe se lanza con .spawn() sin Job Object, por lo que sobrevive al padre.
+    # - $ok valida que ambas copias tuvieron Ã©xito antes de relanzar.
+    # - Si la copia falla el temporal se conserva y ESTICC no se relanza.
     ps_script = f"""
 $waited = 0
 while ((Get-Process -Name 'ESTICC' -ErrorAction SilentlyContinue) -and $waited -lt 30) {{
     Start-Sleep -Seconds 1
     $waited++
 }}
-$waited = 0
-while ((Get-Process -Name 'backend' -ErrorAction SilentlyContinue) -and $waited -lt 10) {{
-    Start-Sleep -Seconds 1
-    $waited++
-}}
+Stop-Process -Name 'backend' -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
 $ok = $false
 try {{
     Copy-Item -Path '{esticc_new}'  -Destination '{esticc_dst}'  -Force -ErrorAction Stop
@@ -173,16 +171,16 @@ if ($ok) {{
 
 def apply_update(ps_path: str) -> dict:
     """
-    Lanza el script PowerShell de sustitución en proceso completamente desacoplado.
+    Lanza el script PowerShell de sustituciÃ³n en proceso completamente desacoplado.
 
     Flags usados:
-      CREATE_NO_WINDOW  (0x08000000) — sin ventana de consola visible
-      DETACHED_PROCESS  (0x00000008) — el proceso sobrevive al cierre de backend.exe
+      CREATE_NO_WINDOW  (0x08000000) â€” sin ventana de consola visible
+      DETACHED_PROCESS  (0x00000008) â€” el proceso sobrevive al cierre de backend.exe
 
     Devuelve { "cerrar": True } para que el frontend cierre la app inmediatamente.
     """
     if not ps_path or not Path(ps_path).exists():
-        raise FileNotFoundError(f"Script de actualización no encontrado: {ps_path}")
+        raise FileNotFoundError(f"Script de actualizaciÃ³n no encontrado: {ps_path}")
 
     CREATE_NO_WINDOW = 0x08000000
     DETACHED_PROCESS = 0x00000008

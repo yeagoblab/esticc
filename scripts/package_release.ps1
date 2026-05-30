@@ -13,6 +13,15 @@ $OutZip  = Join-Path $Root "ESTICC_portable_win64.zip"
 Write-Host ""
 Write-Host "=== ESTICC Release Packager ===" -ForegroundColor Cyan
 
+# Sincronizar VERSION_ACTUAL en actualizador.py con la versión de tauri.conf.json
+$TauriConf   = Get-Content (Join-Path $Root "src-tauri\tauri.conf.json") | ConvertFrom-Json
+$Version     = $TauriConf.package.version
+$ActualizadorPath = Join-Path $Root "backend\modulo_07_actualizador\actualizador.py"
+$content     = Get-Content $ActualizadorPath -Raw
+$updated     = $content -replace 'VERSION_ACTUAL = "[^"]*"', "VERSION_ACTUAL = `"$Version`""
+Set-Content $ActualizadorPath $updated -NoNewline -Encoding utf8
+Write-Host "[OK] VERSION_ACTUAL sincronizado a $Version en actualizador.py" -ForegroundColor Green
+
 # Verificar fuente
 if (-not (Test-Path $SrcDir)) {
     Write-Host "[ERROR] No se encontró la carpeta: $SrcDir" -ForegroundColor Red
