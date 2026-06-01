@@ -1,7 +1,7 @@
 """
 modulo_01_config/config.py
 
-Persiste la configuración del usuario en %APPDATA%\ESTICC\config.json.
+Persiste la configuración del usuario en %APPDATA%/ESTICC/config.json.
 Sobrevive a reinstalaciones de la app (a diferencia de localStorage).
 
 Acciones IPC:
@@ -17,7 +17,7 @@ from pathlib import Path
 
 
 def _ruta_config() -> Path:
-    """Devuelve %APPDATA%\ESTICC\config.json, creando el directorio si no existe."""
+    """Devuelve %APPDATA%/ESTICC/config.json, creando el directorio si no existe."""
     base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
     directorio = base / "ESTICC"
     directorio.mkdir(parents=True, exist_ok=True)

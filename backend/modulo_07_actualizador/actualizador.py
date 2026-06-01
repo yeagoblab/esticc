@@ -24,7 +24,7 @@ import urllib.request
 from pathlib import Path
 
 
-VERSION_ACTUAL = "0.5.2"             # Actualizar junto con tauri.conf.json y Cargo.toml en cada release
+VERSION_ACTUAL = "0.5.3"             # Actualizar junto con tauri.conf.json y Cargo.toml en cada release
 REPO           = "yeagoblab/esticc"
 API_URL        = f"https://api.github.com/repos/{REPO}/releases/latest"
 USER_AGENT     = f"ESTICC/{VERSION_ACTUAL}"
