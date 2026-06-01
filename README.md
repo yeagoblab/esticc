@@ -339,6 +339,20 @@ La lista se limita a las **100 entradas más recientes** (política FIFO). Para 
 
 ## Changelog
 
+### [v0.5.3](https://github.com/yeagoblab/esticc/releases/tag/v0.5.3) — 2026-06-01
+- **fix:** versión interna quemada en el binario — `backend.exe` de la release v0.5.2 se compiló con `VERSION_ACTUAL = "0.4.9"` en lugar de `"0.5.2"`, haciendo que el actualizador detectara una falsa actualización disponible incluso en la instalación más reciente. El binario ahora reporta `0.5.3` correctamente. Causa raíz: el script `package_release.ps1` sincronizaba el source pero no recompilaba el binario antes de empaquetar.
+- **fix:** banner de primera instalación — en instalaciones limpias (sin ningún escaneo previo en `localStorage`), el banner mostraba `Hace Infinity días sin analizar el sistema`. Ahora muestra `Nunca has analizado el sistema.` usando la clave i18n `banner_nunca` (disponible en ES y EN).
+- **fix:** suprimido el warning interno de Tauri `Asset favicon.ico not found` — añadido `<link rel="icon" href="data:,">` en `index.html` para que el WebView no realice la petición automática de `/favicon.ico`.
+- **fix:** corregidas secuencias de escape inválidas `\E` en docstrings de `config.py` (rutas `%APPDATA%\ESTICC`) que habrían causado `SyntaxError` en versiones futuras de Python.
+
+### [v0.5.2](https://github.com/yeagoblab/esticc/releases/tag/v0.5.2) — 2026-05-30
+- **fix:** actualizador funcional de extremo a extremo — al pulsar "Instalar y reiniciar", ESTICC ahora se cierra, el script PowerShell reemplaza los binarios y la app vuelve a abrirse correctamente.
+- **fix:** `backend.exe` sobrevivía como proceso huérfano al cerrar `ESTICC.exe` (Windows no mata procesos hijo sin Job Object). El script de actualización ahora termina `backend.exe` explícitamente con `Stop-Process` antes de copiar los nuevos binarios.
+- **fix:** nuevo logo vectorial — icono regenerado a partir de fuente SVG con mayor nitidez en todos los tamaños de icono (16px a 512px).
+
+### [v0.5.1](https://github.com/yeagoblab/esticc/releases/tag/v0.5.1) — 2026-05-30
+- **ui:** nuevo logo vectorial e iconos regenerados — el escudo con ECG ahora se construye desde un SVG fuente para mantener nitidez en todos los tamaños de icono del bundle.
+
 ### [v0.5.0](https://github.com/yeagoblab/esticc/releases/tag/v0.5.0) — 2026-05-28
 - **feat:** configuración persistida en `%APPDATA%\ESTICC\config.json` — el tema, el rol y el idioma elegidos sobreviven ahora a reinstalaciones de la app (anteriormente solo se guardaban en `localStorage`)
 - **perf:** los 4 escáneres independientes del informe completo (defensas, puertos, autoinicio, parches) se ejecutan ahora en paralelo con `ThreadPoolExecutor` — el tiempo total del informe pasa de ser la suma de los 4 al tiempo del más lento

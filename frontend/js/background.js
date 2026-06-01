@@ -85,7 +85,7 @@
         msg.textContent = t('bg.banner_nunca');  // Primera vez que se abre la app, sin escaneo previo
       } else {
         const diasEntero = Math.floor(dias);  // Redondear hacia abajo: "Hace 7 días" en vez de "7.3 días"
-        msg.textContent = `${t('bg.banner_hace')} ${diasEntero} ${t('bg.banner_dias_sin')}`;
+        msg.textContent = `${t('bg.banner_hace')} ${diasEntero} ${t('bg.banner_dias_sin')}`;  // "Hace 7 días sin analizar el sistema."
       }
     }
 
