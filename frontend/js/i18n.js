@@ -161,6 +161,7 @@ const ESTICC_STRINGS = {
       // Cadenas usadas por background.js para construir el banner y los toasts del auto-scan
       banner_hace:        'Hace',                               // Parte inicial del mensaje: "Hace X días…"
       banner_dias_sin:    'días sin analizar el sistema.',      // Parte final del mensaje del banner
+      banner_nunca:       'Nunca has analizado el sistema.',    // Cuando no hay ningún escaneo previo
       banner_cta:         'Analizar ahora',                     // Botón de acción del banner
       banner_cerrar:      'Ignorar',                            // Botón para descartar el banner sin escanear
       autoscan_inicio:    'Iniciando análisis automático…',     // Toast que aparece al comenzar el auto-scan
@@ -370,6 +371,7 @@ const ESTICC_STRINGS = {
       // Strings used by background.js for the reminder banner and auto-scan toasts
       banner_hace:        'Last scan',           // Used as: "Last scan 7 days ago."
       banner_dias_sin:    'days ago.',
+      banner_nunca:       'You have never scanned this system.',
       banner_cta:         'Scan now',
       banner_cerrar:      'Dismiss',
       autoscan_inicio:    'Starting automatic scan…',

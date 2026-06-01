@@ -79,11 +79,14 @@
     const banner = document.getElementById('banner-recordatorio');  // El div del banner en el HTML
     if (!banner) return;  // Salida segura si el panel de recordatorio no existe en el DOM
 
-    const diasEntero = Math.floor(dias);  // Redondear hacia abajo: "Hace 7 días" en vez de "7.3 días"
     const msg = document.getElementById('banner-rec-msg');  // El <span> donde se escribe el mensaje
     if (msg) {
-      // Construir el mensaje a partir de las cadenas del sistema i18n para respetar el idioma activo
-      msg.textContent = `${t('bg.banner_hace')} ${diasEntero} ${t('bg.banner_dias_sin')}`;
+      if (dias === Infinity) {
+        msg.textContent = t('bg.banner_nunca');  // Primera vez que se abre la app, sin escaneo previo
+      } else {
+        const diasEntero = Math.floor(dias);  // Redondear hacia abajo: "Hace 7 días" en vez de "7.3 días"
+        msg.textContent = `${t('bg.banner_hace')} ${diasEntero} ${t('bg.banner_dias_sin')}`;
+      }
     }
 
     banner.style.display = 'flex';   // Hacer visible el banner (flex para alinear sus hijos)
