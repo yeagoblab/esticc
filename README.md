@@ -23,14 +23,24 @@ Escanea el sistema Windows en tiempo real con detección de atascos: si un escá
 - **Parches** — actualizaciones pendientes de Windows Update
 
 ### 💻 Monitor de Hardware
-Panel en tiempo real con métricas del sistema y detección de eventos críticos:
+Panel en tiempo real con métricas del sistema, detección de eventos críticos y **análisis de vida útil**:
 - **CPU** — uso en %, modelo, núcleos físicos/lógicos, frecuencia y temperatura (modo avanzado)
 - **RAM** — uso en %, total, disponible y velocidad de los módulos (modo avanzado)
 - **Almacenamiento** — uso por partición con barras de color, velocidades de lectura/escritura y tipo de disco (HDD/SSD)
-- **Batería** — porcentaje, estado de carga y tiempo estimado restante (oculto en equipos de sobremesa sin batería)
-- **Event Log de hardware** — últimos eventos críticos del Visor de eventos de Windows (reinicios inesperados, errores de disco, etc.)
+- **Batería** — porcentaje, estado de carga y tiempo estimado restante (oculto en equipos de sobremesa)
+- **Event Log de hardware** — últimos eventos críticos del Visor de eventos de Windows (reinicios inesperados, throttling térmico)
 - Gráficas de historial de CPU y RAM con las últimas 30 muestras
 - Tabla de especificaciones del sistema (visible solo en modo avanzado)
+
+#### Salud y vida útil del hardware *(nuevo en v0.6.0)*
+Cada tarjeta de componente muestra ahora **dos gauges circulares**: Uso actual y Salud/vida útil (0–100). Un botón **?** despliega el panel explicativo con los factores que determinan la puntuación y consejos de acción concretos:
+
+| Componente | Método de evaluación | Factores |
+|---|---|---|
+| CPU | Temperatura + Event Log | °C actuales · eventos de throttling térmico (ID 37) |
+| RAM | Uso de swap (proxy) | % de memoria de intercambio activa |
+| Almacenamiento | `Get-PhysicalDisk HealthStatus` | Healthy / Warning / Unhealthy por disco físico |
+| Batería | WMI `BatteryFullChargedCapacity / DesignedCapacity` | % de capacidad original conservada |
 
 ### 📡 Radar OSINT
 Monitoriza 6 fuentes de inteligencia de ciberseguridad en tiempo real y correlaciona las amenazas publicadas con el estado del sistema local:
@@ -55,12 +65,14 @@ Cada escenario incluye una tarjeta educativa con explicación, pasos de respuest
 | 8 | Beacon C2 powershell + dropper .vbs | Botnet zombie (Emotet) |
 
 ### 📋 Informe de Seguridad
-Ejecuta los 5 escáneres de auditoría en una sola operación, calcula una puntuación de riesgo global (0–100) y genera un informe HTML completo exportable a PDF:
+Ejecuta los 5 escáneres de auditoría y el escaneo de hardware en paralelo, calcula una puntuación de riesgo global (0–100) y genera un informe HTML completo exportable a PDF:
 - Nivel de riesgo: **Bajo / Medio / Alto / Crítico**
 - Hallazgos individuales con nivel de severidad y categoría
 - Resumen por módulo con métricas clave
+- **Sección de salud del dispositivo** *(nuevo en v0.6.0)* — puntuación de CPU, RAM, disco y batería con factores explicativos y consejos de mejora
+- **Ficha técnica de la máquina** *(nuevo en v0.6.0)* — nombre del equipo, dirección IP, MAC, tipo (portátil/sobremesa), procesador, RAM y almacenamiento en la cabecera del informe
 - Recomendaciones de remediación personalizadas según los hallazgos detectados
-- Exportación a PDF limpia (sin barra lateral ni elementos de la UI) mediante `window.print()`
+- Exportación a PDF correcta en múltiples páginas (sin barra lateral ni elementos de UI)
 
 ### 📅 Historial de Análisis
 Calendario interactivo que combina los datos de **Windows Defender** con los escaneos propios de ESTICC:
@@ -77,6 +89,13 @@ Base de conocimiento con 10 categorías de amenazas, búsqueda en tiempo real y 
 - Indicadores de Compromiso (IOCs)
 - CVEs asociados
 - Vectores de ataque, síntomas y medidas de prevención
+
+### 🎓 Tutorial interactivo *(nuevo en v0.6.0)*
+Tutorial de primera vez que guía al usuario por todas las funciones principales de ESTICC:
+- Se lanza automáticamente en la primera instalación (puede omitirse)
+- Navegación paso a paso con resaltado visual del elemento de la UI explicado
+- Relanzable en cualquier momento desde el panel de Configuración con "🎓 Ver tutorial"
+- 7 pasos: Bienvenida → Escáneres → Modo Demo → Enciclopedia → Radar → Informe → Configuración
 
 ### ⚙️ Configuración y Perfiles de Usuario
 Panel de ajustes persistidos en `%APPDATA%\ESTICC\config.json` (sobrevive a reinstalaciones) con efecto inmediato sin recargar:
@@ -203,26 +222,28 @@ esticc/
 │   │   ├── lector_rss.py              # Fetch concurrente de 6 feeds RSS de ciberseguridad
 │   │   └── correlacion.py             # Cruza noticias con puertos abiertos y CVEs locales
 │   ├── modulo_04_reportes/
-│   │   └── generador.py               # Ejecuta los 5 escáneres + puntuación de riesgo 0-100
+│   │   └── generador.py               # Ejecuta 6 escáneres en paralelo + riesgo 0-100 + ficha de máquina
 │   ├── modulo_05_historial/
 │   │   ├── historial_defender.py      # Consulta el log de eventos de Windows Defender
 │   │   └── historial_esticc.py        # Persiste el historial propio en %APPDATA%\ESTICC\
 │   ├── modulo_06_hardware/
-│   │   └── escaner_hardware.py        # CPU, RAM, disco, batería y Event Log de hardware
+│   │   └── escaner_hardware.py        # CPU, RAM, disco, batería, Event Log + scores de salud/vida útil
 │   └── modulo_07_actualizador/
 │       ├── __init__.py                # Exporta check_update, download_and_prepare, apply_update
 │       └── actualizador.py            # GitHub API + descarga ZIP + PS script copy-on-close
 ├── frontend/
 │   ├── index.html                     # SPA única; incluye todos los paneles y el CSS base
 │   ├── css/
+│   │   ├── tutorial.css               # Overlay del tutorial + dots de progreso + highlight de UI
 │   │   ├── simulador.css              # Paneles del simulador de amenazas
 │   │   ├── enciclopedia.css           # Grid de tarjetas + modal de amenaza
 │   │   ├── radar.css                  # Contadores OSINT + tabla de noticias
-│   │   ├── reportes.css               # Informe de seguridad + @media print (PDF limpio)
+│   │   ├── reportes.css               # Informe de seguridad + @media print multi-página
 │   │   ├── historial.css              # Calendario mensual + timeline de eventos
 │   │   ├── config.css                 # Panel de configuración + variables de tema claro
-│   │   └── hardware.css               # Grid de tarjetas de hardware + gauges SVG
+│   │   └── hardware.css               # Grid de tarjetas + doble gauge + panel de salud
 │   └── js/
+│       ├── tutorial.js                # Tutorial de primera vez (7 pasos, highlight, persistencia)
 │       ├── i18n.js                    # Diccionarios ES/EN + función t() global
 │       ├── config.js                  # Carga/guarda config vía IPC (%APPDATA%) con fallback localStorage; aplica tema, rol e idioma
 │       ├── background.js              # Escáner en segundo plano + banner de recordatorio
@@ -230,9 +251,9 @@ esticc/
 │       ├── simulador.js               # 8 escenarios de demo + interceptor de invoke()
 │       ├── enciclopedia.js            # Base de datos de malware + buscador + modal de detalle
 │       ├── radar.js                   # Fetch OSINT + renderizado en vista básica/avanzada
-│       ├── reportes.js                # Generación del informe HTML exportable a PDF
+│       ├── reportes.js                # Informe HTML con ficha de máquina + sección de salud
 │       ├── historial.js               # Calendario interactivo + window.HISTORIAL.registrar()
-│       ├── hardware.js                # Monitor de CPU/RAM/disco/batería + Event Log
+│       ├── hardware.js                # Monitor + doble gauge (uso/salud) + panel explicativo
 │       └── actualizador.js            # UI de actualización in-app (comprobar → descargar → instalar)
 └── src-tauri/
     ├── src/main.rs                    # Sidecar spawn (CREATE_NO_WINDOW) + IPC Rust↔Python
@@ -338,6 +359,15 @@ La lista se limita a las **100 entradas más recientes** (política FIFO). Para 
 ---
 
 ## Changelog
+
+### [v0.6.0](https://github.com/yeagoblab/esticc/releases/tag/v0.6.0) — 2026-06-02
+- **feat:** tutorial interactivo de primera vez — se lanza automáticamente en la primera instalación con un overlay de 7 pasos que resalta cada elemento de la UI. Incluye botón "Omitir" y opción de relanzar desde Configuración. El estado se persiste en `config.json` (`tutorial_completado`).
+- **feat:** doble gauge de salud en el monitor de hardware — cada tarjeta (CPU, RAM, disco, batería) muestra ahora dos indicadores circulares: **Uso actual** y **Salud / vida útil** (0–100, escala verde/naranja/rojo invertida).
+- **feat:** panel explicativo de salud — botón **?** junto a cada gauge de salud que despliega los factores que determinan la puntuación (temperatura, throttling, swap, S.M.A.R.T., desgaste de batería) y un consejo de acción concreto si hay algo que mejorar.
+- **feat:** sección de salud del dispositivo en el informe PDF — el informe incluye un grid 2×2 con la puntuación, nivel (Buena/Moderada/Deteriorada), factores explicativos y consejo por componente.
+- **feat:** ficha técnica de la máquina en la cabecera del informe — nombre del equipo, IP, MAC, tipo (portátil/sobremesa), procesador, RAM y almacenamiento.
+- **fix:** exportación a PDF en múltiples páginas — sobreescrito `height: auto` y `overflow: visible` en `@media print` para que el contenido no quede truncado a una sola página.
+- **chore:** `generate_report` ahora ejecuta 6 escáneres en paralelo (añadido `escaner_hardware` con `muestreo=2`) sin incrementar el tiempo total.
 
 ### [v0.5.3](https://github.com/yeagoblab/esticc/releases/tag/v0.5.3) — 2026-06-01
 - **fix:** versión interna quemada en el binario — `backend.exe` de la release v0.5.2 se compiló con `VERSION_ACTUAL = "0.4.9"` en lugar de `"0.5.2"`, haciendo que el actualizador detectara una falsa actualización disponible incluso en la instalación más reciente. El binario ahora reporta `0.5.3` correctamente. Causa raíz: el script `package_release.ps1` sincronizaba el source pero no recompilaba el binario antes de empaquetar.

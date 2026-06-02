@@ -79,6 +79,49 @@
     label.textContent = `${Math.round(clamp)}%`;  // Actualizar el texto del porcentaje
   }
 
+  // ── Gauge de salud (escala de color invertida: verde=bueno, rojo=malo) ──────
+
+  /**
+   * actualizarGaugeSalud(svgId, pct) — Anima el gauge de salud/vida útil.
+   *
+   * La escala de color es la inversa al gauge de uso:
+   *   · ≥ 80 %: verde  (salud buena)
+   *   · 50–79 %: naranja (salud moderada, vigilar)
+   *   · < 50 %:  rojo   (salud crítica, intervención necesaria)
+   *
+   * Si pct es null/undefined (datos no disponibles), muestra '—' y deja el arco vacío.
+   */
+  function actualizarGaugeSalud(svgId, pct) {
+    const circle = document.querySelector(`#${svgId} .hw-gauge-circle`);
+    const label  = document.querySelector(`#${svgId} .hw-gauge-pct`);
+    if (!circle || !label) return;  // El gauge aún no está en el DOM (ej. batería en equipo sin batería)
+
+    if (pct == null) {
+      // Sin datos disponibles (ej. WMI no reporta el atributo en este hardware):
+      // poner el offset = circunferencia completa hace invisible el arco sin cambiar el SVG
+      circle.style.strokeDasharray  = CIRCUNFERENCIA;
+      circle.style.strokeDashoffset = CIRCUNFERENCIA;  // Arco invisible (0 % de relleno visible)
+      label.textContent = '—';  // Guion para indicar "no disponible" en lugar de 0 %
+      return;
+    }
+
+    const clamp  = Math.max(0, Math.min(100, pct));  // Prevenir valores fuera de rango del sidecar
+    const offset = CIRCUNFERENCIA * (1 - clamp / 100);  // Porción oculta del arco
+
+    circle.style.strokeDasharray  = CIRCUNFERENCIA;
+    circle.style.strokeDashoffset = offset;
+
+    // Limpiar primero las tres clases de color para evitar combinaciones inválidas
+    // (si se llama varias veces en el mismo ciclo de escaneo podrían acumularse)
+    circle.classList.remove('salud-ok', 'salud-warn', 'salud-danger');
+    // Escala inversa a actualizarGauge(): aquí verde=bueno, rojo=malo
+    if (clamp >= 80)      circle.classList.add('salud-ok');      // Verde: salud buena
+    else if (clamp >= 50) circle.classList.add('salud-warn');    // Naranja: degradación notable
+    else                  circle.classList.add('salud-danger');  // Rojo: intervención recomendada
+
+    label.textContent = `${Math.round(clamp)}%`;
+  }
+
   // ── Mini-gráfica de línea (SVG polyline) ────────────────────────────────────
 
   /**
@@ -123,15 +166,49 @@
     `;
   }
 
+  // ── Panel de explicación de salud ────────────────────────────────────────────
+
+  /**
+   * renderSaludDetalle(panelId, factores, consejo) — Rellena el panel explicativo.
+   *
+   * Cada factor tiene { tipo: 'ok'|'warn'|'danger', texto: string }.
+   * El consejo es un string con la acción recomendada, o null si todo está bien.
+   * Si el panel no existe o no hay factores, no hace nada.
+   */
+  function renderSaludDetalle(panelId, factores, consejo) {
+    const panel = document.getElementById(panelId);
+    if (!panel) return;  // El panel puede no existir en el DOM si la tarjeta no incluye detalle de salud
+
+    // Mapeo tipo → emoji: permite que los factores vengan del sidecar sin lógica de presentación
+    const iconos = { ok: '✅', warn: '⚠️', danger: '🔴' };
+
+    // Construir el HTML de los factores; si no hay factores, el array vacío produce string vacío
+    const factoresHTML = (factores || []).map(f => `
+      <div class="hw-salud-factor">
+        <span class="hw-salud-factor-icon">${iconos[f.tipo] || '•'}</span>
+        <span>${f.texto}</span>
+      </div>`).join('');
+
+    // El consejo solo se muestra cuando el sidecar lo envía (no nulo): si todo está bien, no aparece nada
+    const consejoHTML = consejo
+      ? `<div class="hw-salud-consejo">${consejo}</div>`
+      : '';
+
+    // Reemplazar el contenido completo en cada escaneo (no acumular filas de escaneos anteriores)
+    panel.innerHTML = factoresHTML + consejoHTML;
+  }
+
   // ── Renderizado de secciones ─────────────────────────────────────────────────
 
   /**
-   * renderCpu(cpu) — Actualiza la tarjeta de CPU con los datos del sidecar.
-   * Modo básico: gauge + porcentaje de uso.
-   * Modo avanzado: gauge + modelo, núcleos, frecuencia, temperatura + mini-gráfica.
+   * renderCpu(cpu, saludPct) — Actualiza la tarjeta de CPU con los datos del sidecar.
+   * Modo básico: gauge uso + gauge salud + porcentaje.
+   * Modo avanzado: ambos gauges + modelo, núcleos, frecuencia, temperatura + mini-gráfica.
    */
-  function renderCpu(cpu) {
-    actualizarGauge('hw-gauge-cpu', cpu.uso_pct);  // Actualizar arco del gauge con el uso real
+  function renderCpu(cpu, saludPct, saludFactores, saludConsejo) {
+    actualizarGauge('hw-gauge-cpu', cpu.uso_pct);              // Gauge izquierdo: % de uso actual
+    actualizarGaugeSalud('hw-gauge-cpu-salud', saludPct ?? null);  // Gauge derecho: salud/vida útil
+    renderSaludDetalle('hw-salud-cpu', saludFactores, saludConsejo);  // Panel desplegable con factores
 
     // Texto de uso en el elemento básico de resumen
     const usoPct = document.getElementById('hw-cpu-uso');
@@ -176,10 +253,13 @@
   }
 
   /**
-   * renderRam(ram) — Actualiza la tarjeta de RAM.
+   * renderRam(ram, saludPct) — Actualiza la tarjeta de RAM.
+   * saludPct mide la presión de memoria (uso de swap, fragmentación): no es degradación física.
    */
-  function renderRam(ram) {
-    actualizarGauge('hw-gauge-ram', ram.uso_pct);  // Actualizar arco del gauge de RAM
+  function renderRam(ram, saludPct, saludFactores, saludConsejo) {
+    actualizarGauge('hw-gauge-ram', ram.uso_pct);              // Gauge izquierdo: % de uso actual
+    actualizarGaugeSalud('hw-gauge-ram-salud', saludPct ?? null);  // Gauge derecho: salud de uso de memoria
+    renderSaludDetalle('hw-salud-ram', saludFactores, saludConsejo);  // Panel desplegable con factores
 
     const elTotal = document.getElementById('hw-ram-total');
     if (elTotal) elTotal.textContent = `${ram.total_gb} GB`;  // Ej. "16.0 GB"
@@ -199,11 +279,25 @@
   }
 
   /**
-   * renderDisco(disco) — Actualiza la tarjeta de almacenamiento con particiones y velocidades.
-   * En modo básico muestra solo la partición principal (C:\ o la primera de la lista).
-   * En modo avanzado muestra todas las particiones en una tabla.
+   * renderDisco(disco, saludPct, saludTxt) — Actualiza la tarjeta de almacenamiento.
+   * Muestra badge de salud global del disco en la cabecera de la tarjeta.
+   * saludPct y saludTxt vienen del análisis S.M.A.R.T. del sidecar Python.
    */
-  function renderDisco(disco) {
+  function renderDisco(disco, saludPct, saludTxt, saludFactores, saludConsejo) {
+    // Badge de salud del disco: solo se muestra si el sidecar pudo leer S.M.A.R.T.
+    // (en VMs o algunos NVMe antiguos el atributo no está disponible y saludPct llega null)
+    const badge  = document.getElementById('hw-disco-salud-badge');
+    const infoBtn = document.getElementById('hw-disco-info-btn');
+    if (badge && saludPct != null) {
+      // Reutilizar el mismo umbral 80/50 que el gauge de salud para consistencia visual
+      const cls = saludPct >= 80 ? 'salud-ok' : saludPct >= 50 ? 'salud-warn' : 'salud-danger';
+      badge.className = `hw-disco-salud-badge ${cls}`;
+      badge.textContent = `${saludTxt ?? '—'} · ${saludPct}%`;  // Ej. "Óptimo · 94%"
+      badge.style.display = '';     // Hacer visible (por defecto está oculto hasta tener datos)
+      if (infoBtn) infoBtn.style.display = '';  // Mostrar el botón ? junto al badge
+    }
+    renderSaludDetalle('hw-salud-disco', saludFactores, saludConsejo);  // Panel desplegable
+
     // Velocidades globales de I/O
     const elLec = document.getElementById('hw-disco-lectura');
     if (elLec) elLec.textContent = `${disco.lectura_mbs} MB/s`;  // Ej. "45.30 MB/s"
@@ -241,37 +335,47 @@
   }
 
   /**
-   * renderBateria(bateria) — Actualiza la tarjeta de batería.
-   * Si bateria.presente es false (desktop), muestra el mensaje de ausencia.
+   * renderBateria(bateria, saludPct) — Actualiza la tarjeta de batería.
+   * Muestra la carga actual (uso) y la vida útil restante (salud por desgaste de ciclos).
    */
-  function renderBateria(bateria) {
+  function renderBateria(bateria, saludPct, saludFactores, saludConsejo) {
     const cardBody = document.getElementById('hw-bat-body');
     if (!cardBody) return;
 
     if (!bateria.presente) {
-      // Desktop o sistema sin batería: mensaje simple
       cardBody.innerHTML = `<span class="hw-bat-ausente">${t('hardware.bat_ausente')}</span>`;
       return;
     }
 
-    const pct = bateria.porcentaje;  // Porcentaje de carga (0–100)
-    // Clase de color de la barra: rojo < 15 %, naranja < 30 %, verde el resto
+    const pct    = bateria.porcentaje;
     const barCls = pct < 15 ? 'low' : pct < 30 ? 'warn' : '';
+    const icono  = bateria.cargando ? '⚡' : '🔋';
 
-    // Icono según estado de carga: rayo si está cargando, batería si descargando
-    const icono = bateria.cargando ? '⚡' : '🔋';
-
-    // Texto del estado: "Cargando" o "Descargando"
     const estadoTxt = bateria.cargando
       ? t('hardware.bat_cargando')
       : t('hardware.bat_descargando');
 
-    // Tiempo restante: null cuando está cargando o no calculable
     const tiempoTxt = bateria.minutos_restantes != null
       ? `${bateria.minutos_restantes} min`
       : t('hardware.bat_sin_datos');
 
-    // Reconstruir el HTML de la tarjeta con los datos actualizados
+    // Bloque de vida útil: barra de desgaste basada en el ratio DesignCapacity/FullChargeCapacity de WMI.
+    // Solo se renderiza si el sidecar pudo obtener el dato; en desktops o portátiles muy antiguos
+    // WMI no expone DesignCapacity y saludPct llega null → el bloque queda omitido.
+    let saludHTML = '';
+    if (saludPct != null) {
+      // Sin clase = verde (buena salud); salud-warn = naranja; salud-danger = rojo
+      const saludCls = saludPct >= 80 ? '' : saludPct >= 50 ? 'salud-warn' : 'salud-danger';
+      saludHTML = `
+        <div class="hw-bat-salud-row">
+          <span class="hw-bat-salud-label">Vida útil</span>
+          <div class="hw-bat-salud-bar-wrap">
+            <div class="hw-bat-salud-bar ${saludCls}" style="width:${saludPct}%"></div>
+          </div>
+          <span class="hw-bat-salud-pct">${saludPct}%</span>
+        </div>`;
+    }
+
     cardBody.innerHTML = `
       <div class="hw-bat-estado">
         <span class="hw-bat-icono">${icono}</span>
@@ -285,7 +389,34 @@
         <span class="hw-meta-label">${t('hardware.bat_restante')}</span>
         <span class="hw-meta-value">${tiempoTxt}</span>
       </div>
+      ${saludHTML}
     `;
+
+    // Panel de detalle de batería: se crea dinámicamente porque renderBateria() reconstruye
+    // cardBody.innerHTML en cada escaneo, lo que destruiría un panel estático en el HTML.
+    // La creación dinámica solo ocurre la primera vez (guarda verificación por ID).
+    let detalleEl = document.getElementById('hw-salud-bateria');
+    if (!detalleEl) {
+      detalleEl = document.createElement('div');
+      detalleEl.id        = 'hw-salud-bateria';
+      detalleEl.className = 'hw-salud-detalle';
+      detalleEl.hidden    = true;  // Oculto por defecto; el listener de delegación lo toglea
+      document.getElementById('hw-card-bateria')?.appendChild(detalleEl);
+
+      // Botón ? en el título de la tarjeta: solo si hay datos de salud disponibles.
+      // Se verifica que no exista ya (idempotencia) por si lanzar() se llama dos veces.
+      const titulo = document.querySelector('#hw-card-bateria .hw-card-titulo');
+      if (titulo && saludPct != null && !document.getElementById('hw-bat-info-btn')) {
+        const btn = document.createElement('button');
+        btn.id        = 'hw-bat-info-btn';
+        btn.className = 'hw-salud-info-btn';
+        btn.dataset.target = 'hw-salud-bateria';  // El listener de delegación usa este atributo para saber qué panel mostrar
+        btn.title     = '¿Por qué esta puntuación?';
+        btn.textContent = '?';
+        titulo.insertAdjacentElement('afterend', btn);  // Insertar justo después del título, no dentro
+      }
+    }
+    renderSaludDetalle('hw-salud-bateria', saludFactores, saludConsejo);  // Rellenar el panel con los factores
   }
 
   /**
@@ -398,10 +529,39 @@
         eventos: [
           {
             tipo:      'reinicio_inesperado',
-            timestamp: '2026-05-20T08:42:15',                // Fecha ficticia de hace unos días
+            timestamp: '2026-05-20T08:42:15',
             mensaje:   'The system has rebooted without cleanly shutting down first.',
           },
         ],
+        salud: {
+          cpu_pct:  aleatorio(72, 98),
+          cpu_factores: [
+            { tipo: 'ok',   texto: 'Temperatura en rango normal: 62 °C' },
+            { tipo: 'warn', texto: '1 evento de reducción de velocidad por calor en el historial del sistema' },
+          ],
+          cpu_consejo: 'El procesador ha bajado su frecuencia para no sobrecalentarse. Considera limpiar los ventiladores o mejorar el flujo de aire del chasis.',
+
+          ram_pct:  aleatorio(80, 99),
+          ram_factores: [
+            { tipo: 'ok', texto: 'Memoria de intercambio prácticamente sin uso: 3%' },
+          ],
+          ram_consejo: null,
+
+          disco_pct:  aleatorio(60, 95),
+          disco_txt:  'Óptimo',
+          disco_factores: [
+            { tipo: 'ok', texto: 'Samsung SSD 860 EVO (SSD): estado óptimo según S.M.A.R.T.' },
+            { tipo: 'ok', texto: 'WD Blue 1TB (HDD): estado óptimo según S.M.A.R.T.' },
+          ],
+          disco_consejo: null,
+
+          bateria_pct: aleatorio(55, 92),
+          bateria_factores: [
+            { tipo: 'warn', texto: 'Capacidad actual: 73% respecto a la original de fábrica (has perdido un 27%)' },
+            { tipo: 'warn', texto: 'Degradación notable — la autonomía es significativamente menor que cuando era nueva' },
+          ],
+          bateria_consejo: 'La batería ha perdido capacidad. Evita cargarla al 100% constantemente y no la dejes descargarse completamente. Mantenerla entre el 20% y el 80% alarga su vida útil.',
+        },
       },
       meta: {
         duracion_s: 3.1,
@@ -446,15 +606,15 @@
         return;
       }
 
-      const d = resp.data;  // Datos del escaneo: { cpu, ram, disco, bateria, eventos }
+      const d = resp.data;
+      const s = d.salud || {};
 
-      // Renderizar cada sección con los datos recibidos
-      renderCpu(d.cpu);           // Gauge + historial + metadatos de CPU
-      renderRam(d.ram);           // Gauge + historial + metadatos de RAM
-      renderDisco(d.disco);       // Particiones + velocidades de I/O
-      renderBateria(d.bateria);   // Barra de batería o mensaje de ausencia
-      renderEventos(d.eventos);   // Lista de eventos críticos del Event Log
-      renderSpecsTable(d);        // Tabla de especificaciones (visible solo en modo avanzado)
+      renderCpu(d.cpu,     s.cpu_pct,     s.cpu_factores,     s.cpu_consejo);
+      renderRam(d.ram,     s.ram_pct,     s.ram_factores,     s.ram_consejo);
+      renderDisco(d.disco, s.disco_pct,   s.disco_txt,        s.disco_factores, s.disco_consejo);
+      renderBateria(d.bateria, s.bateria_pct ?? null, s.bateria_factores, s.bateria_consejo);
+      renderEventos(d.eventos);
+      renderSpecsTable(d);
 
       // Actualizar el timestamp del último escaneo en el footer del panel
       const ts = document.getElementById('hw-timestamp');
@@ -487,8 +647,26 @@
     }
 
     // Inicializar los gauges en 0 % para evitar que aparezcan vacíos antes del primer escaneo
-    actualizarGauge('hw-gauge-cpu', 0);  // Arco vacío en CPU
-    actualizarGauge('hw-gauge-ram', 0);  // Arco vacío en RAM
+    actualizarGauge('hw-gauge-cpu', 0);
+    actualizarGauge('hw-gauge-ram', 0);
+
+    // Listener de delegación para los botones de detalle de salud.
+    // Se registra en el panel raíz en lugar de en cada botón individualmente
+    // porque los botones de batería y disco se crean dinámicamente (no existen en el DOM al arrancar).
+    // closest() sube por el árbol DOM hasta encontrar el botón aunque el clic sea en un hijo.
+    const panelHw = document.getElementById('panel-hardware');
+    if (panelHw) {
+      panelHw.addEventListener('click', e => {
+        const btn = e.target.closest('.hw-salud-info-btn');  // null si el clic no fue en un botón ?
+        if (!btn) return;  // Ignorar clics que no sean en botones de info de salud
+        const targetId = btn.dataset.target;          // ID del panel a mostrar/ocultar
+        const detalle  = document.getElementById(targetId);
+        if (!detalle) return;                          // El panel aún no existe (ej. sin batería)
+        const abierto  = !detalle.hidden;              // Estado actual antes del clic
+        detalle.hidden = abierto;                      // Invertir: si estaba abierto, cerrarlo y viceversa
+        btn.classList.toggle('activo', !abierto);      // Colorear el botón cuando el panel está abierto
+      });
+    }
   });
 
   // ── API pública ──────────────────────────────────────────────────────────────

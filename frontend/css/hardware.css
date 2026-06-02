@@ -161,6 +161,199 @@
   pointer-events: none;                        /* No interceptar clics          */
 }
 
+/* ── 3b. Layout de doble gauge (uso + salud) ───────────────────────────── */
+
+/* Contenedor de los dos gauges (uso + salud) en paralelo dentro de .hw-card-body.
+ * Se usa flex-shrink:0 para que el par de gauges no se comprima cuando los metadatos
+ * de la derecha tienen mucho texto (ej. modelo de CPU largo). */
+.hw-gauges-pair {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;                /* No encoger el bloque de gauges aunque haya poco espacio */
+  align-items: flex-end;         /* Alinear por la base para que los sublabels queden arriba del gauge */
+}
+
+/* Columna individual: sublabel + gauge superpuestos en column */
+.hw-gauge-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Etiqueta pequeña sobre cada gauge: distingue visualmente "Uso" de "Salud" sin ocupar espacio */
+.hw-gauge-sublabel {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  white-space: nowrap;  /* Evitar salto de línea si la tarjeta se estrecha */
+}
+
+/* Reducir el tamaño de los gauges en modo par para que los dos quepan sin desbordar la tarjeta.
+ * El gauge en modo solitario mide 90px; en modo par mide 80px (10px menos por gauge). */
+.hw-gauges-pair .hw-gauge-wrap      { width: 80px; height: 80px; }
+.hw-gauges-pair .hw-gauge-wrap svg  { width: 80px; height: 80px; }
+.hw-gauges-pair .hw-gauge-pct       { font-size: 1rem; }  /* Porcentaje algo más pequeño para caber */
+
+/* Fila que agrupa la etiqueta "Salud" y el botón ? en una misma línea */
+.hw-gauge-sublabel-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Botón circular "?" que despliega el panel de factores de salud.
+ * Tamaño mínimo (15px) para no competir visualmente con el gauge pero seguir siendo pulsable.
+ * Se crea dinámicamente por hardware.js (batería) o está en el HTML (CPU, RAM, disco). */
+.hw-salud-info-btn {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;            /* Forma circular */
+  border: 1px solid var(--text-dim);
+  background: none;
+  color: var(--text-dim);
+  font-size: 9px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  transition: border-color 0.15s, color 0.15s;
+  flex-shrink: 0;                /* No encoger dentro de .hw-gauge-sublabel-row */
+}
+
+/* Estado hover y activo (cuando el panel de detalle está abierto): mismo color accent para coherencia */
+.hw-salud-info-btn:hover,
+.hw-salud-info-btn.activo {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Panel de explicación de salud ──────────────────────────────────────── */
+
+/* Panel desplegable que aparece bajo la tarjeta al pulsar el botón ?.
+ * hidden lo gestiona el listener de delegación en hardware.js: cuando hidden=false
+ * el panel es visible y la animación se lanza (solo en la transición de oculto→visible). */
+.hw-salud-detalle {
+  border-top: 1px solid var(--border);  /* Separador visual del contenido de la tarjeta */
+  padding-top: 12px;
+  animation: hw-detalle-in 0.18s ease;  /* Entrada suave para no desplazar el layout bruscamente */
+}
+
+/* Deslizar desde arriba 4px + fade: simula que el panel "cae" al abrirse */
+@keyframes hw-detalle-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Cada factor: icono + texto. align-items:flex-start porque el texto puede ser multilinea */
+.hw-salud-factor {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(48, 54, 61, 0.45);  /* Separador sutil entre factores */
+  font-size: 0.79rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.hw-salud-factor:last-of-type { border-bottom: none; }  /* Quitar el borde del último factor */
+
+/* flex-shrink:0 evita que el emoji se aplaste si el texto es largo */
+.hw-salud-factor-icon { flex-shrink: 0; font-size: 0.85rem; margin-top: 1px; }
+
+/* Bloque de consejo accionable: solo aparece cuando el sidecar envía un consejo (no null).
+ * El borde izquierdo de color accent lo diferencia visualmente de los factores neutrales. */
+.hw-salud-consejo {
+  margin-top: 10px;
+  padding: 9px 12px;
+  background: rgba(88, 166, 255, 0.07);  /* Fondo azul muy tenue para distinguirlo de los factores */
+  border-left: 3px solid var(--accent);  /* Franja de color que indica "acción recomendada" */
+  border-radius: 0 6px 6px 0;
+  font-size: 0.78rem;
+  color: var(--text);
+  line-height: 1.55;
+}
+
+/* El emoji de bombilla se añade via CSS para no duplicarlo en el HTML del sidecar */
+.hw-salud-consejo::before {
+  content: '💡 ';
+}
+
+/* Colores del gauge de salud: escala invertida respecto a actualizarGauge().
+ * Aquí verde=bueno (salud alta), rojo=malo (salud deteriorada). */
+.hw-gauge-circle.salud-ok     { stroke: var(--ok,     #3fb950); }  /* ≥ 80 %: buena salud  */
+.hw-gauge-circle.salud-warn   { stroke: var(--warn,   #d29922); }  /* 50–79 %: deterioro notable */
+.hw-gauge-circle.salud-danger { stroke: var(--danger, #f85149); }  /* < 50 %: deterioro crítico  */
+
+/* Badge de salud de disco: aparece en la cabecera de la tarjeta junto al título.
+ * margin-left:auto lo empuja al extremo derecho sin importar el ancho del título. */
+.hw-disco-salud-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 10px;
+  margin-left: auto;  /* Empujar el badge a la derecha del título de la tarjeta */
+}
+
+/* Colores del badge de salud de disco: misma paleta que el gauge de salud */
+.hw-disco-salud-badge.salud-ok     { background: rgba(63,185,80,.15);  color: var(--ok);     }
+.hw-disco-salud-badge.salud-warn   { background: rgba(210,153,34,.15); color: var(--warn);   }
+.hw-disco-salud-badge.salud-danger { background: rgba(248,81,73,.15);  color: var(--danger); }
+
+/* Fila de vida útil de batería: label | barra | porcentaje en una sola línea.
+ * Diseñada para insertarse dentro de cardBody, bajo la barra de carga actual. */
+.hw-bat-salud-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;  /* Separación de la barra de carga que aparece arriba */
+}
+
+.hw-bat-salud-label {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  white-space: nowrap;  /* Evitar que "Vida útil" se parta en dos líneas */
+}
+
+/* Contenedor de la barra de degradación de batería */
+.hw-bat-salud-bar-wrap {
+  flex: 1;              /* Tomar todo el espacio disponible entre el label y el porcentaje */
+  height: 6px;          /* Barra más fina que la de carga (10px) para diferenciarse visualmente */
+  background: var(--border, rgba(255,255,255,.1));
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+/* Barra de degradación: misma lógica de transición que hw-bat-bar pero con umbrales de salud */
+.hw-bat-salud-bar {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--ok, #3fb950);  /* Verde por defecto: batería en buen estado */
+  transition: width .5s ease, background .4s ease;  /* Animación suave al actualizar los datos */
+}
+
+.hw-bat-salud-bar.salud-warn   { background: var(--warn,   #d29922); }  /* 50–79 % de vida útil */
+.hw-bat-salud-bar.salud-danger { background: var(--danger, #f85149); }  /* < 50 %: batería muy degradada */
+
+/* Porcentaje de vida útil: min-width fijo para que los valores de 1 o 2 dígitos no desplacen la barra */
+.hw-bat-salud-pct {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+  min-width: 36px;      /* Suficiente para "100%" sin desbordar */
+  text-align: right;
+}
+
 /* ── 4. Gráfica de línea histórica ─────────────────────────────────────── */
 
 /* Contenedor del SVG de la minigráfica */

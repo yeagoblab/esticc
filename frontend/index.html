@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ESTICC — Panel de Seguridad</title>
   <link rel="icon" href="data:,"><!-- data:, evita la petición automática de /favicon.ico que Tauri no puede servir -->
+  <link rel="stylesheet" href="css/tutorial.css" />
   <link rel="stylesheet" href="css/simulador.css" />
   <link rel="stylesheet" href="css/enciclopedia.css" />
   <link rel="stylesheet" href="css/radar.css" />
@@ -711,6 +712,7 @@
               <span class="rep-paso" id="paso-2">⚙️ Procesos</span>
               <span class="rep-paso" id="paso-3">🚀 Autoinicio</span>
               <span class="rep-paso" id="paso-4">🔧 Parches</span>
+              <span class="rep-paso" id="paso-5">💻 Hardware</span>
             </div>
           </div>
           <div id="reporte-contenido"></div>
@@ -784,15 +786,31 @@
         <div class="hw-card" id="hw-card-cpu">
           <p class="hw-card-titulo" data-i18n="hardware.cpu_titulo">Procesador (CPU)</p>
           <div class="hw-card-body">
-            <!-- Gauge circular SVG: radio=40, viewBox centrado en 50,50 -->
-            <div class="hw-gauge-wrap" id="hw-gauge-cpu">
-              <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                <!-- Pista de fondo: círculo completo sin relleno -->
-                <circle class="hw-gauge-track" cx="50" cy="50" r="40" />
-                <!-- Arco de relleno: stroke-dasharray/offset actualizados por JS -->
-                <circle class="hw-gauge-circle" cx="50" cy="50" r="40" />
-              </svg>
-              <div class="hw-gauge-pct">0%</div>
+            <!-- Doble gauge: Uso (izquierda) + Salud (derecha) -->
+            <div class="hw-gauges-pair">
+              <div class="hw-gauge-col">
+                <span class="hw-gauge-sublabel">Uso</span>
+                <div class="hw-gauge-wrap" id="hw-gauge-cpu">
+                  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <circle class="hw-gauge-track" cx="50" cy="50" r="40" />
+                    <circle class="hw-gauge-circle" cx="50" cy="50" r="40" />
+                  </svg>
+                  <div class="hw-gauge-pct">0%</div>
+                </div>
+              </div>
+              <div class="hw-gauge-col">
+                <div class="hw-gauge-sublabel-row">
+                  <span class="hw-gauge-sublabel">Salud</span>
+                  <button class="hw-salud-info-btn" data-target="hw-salud-cpu" title="¿Por qué esta puntuación?">?</button>
+                </div>
+                <div class="hw-gauge-wrap" id="hw-gauge-cpu-salud">
+                  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <circle class="hw-gauge-track" cx="50" cy="50" r="40" />
+                    <circle class="hw-gauge-circle" cx="50" cy="50" r="40" />
+                  </svg>
+                  <div class="hw-gauge-pct">—</div>
+                </div>
+              </div>
             </div>
             <!-- Metadatos de CPU (parcialmente ocultos en modo básico via CSS) -->
             <div class="hw-meta-list">
@@ -814,18 +832,39 @@
           <div class="hw-chart" id="hw-chart-cpu" title="Historial CPU">
             <svg viewBox="0 0 300 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"></svg>
           </div>
+          <!-- Panel de explicación de salud CPU (oculto por defecto) -->
+          <div class="hw-salud-detalle" id="hw-salud-cpu" hidden></div>
         </div>
 
         <!-- Tarjeta RAM -->
         <div class="hw-card" id="hw-card-ram">
           <p class="hw-card-titulo" data-i18n="hardware.ram_titulo">Memoria RAM</p>
           <div class="hw-card-body">
-            <div class="hw-gauge-wrap" id="hw-gauge-ram">
-              <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                <circle class="hw-gauge-track" cx="50" cy="50" r="40" />
-                <circle class="hw-gauge-circle" cx="50" cy="50" r="40" />
-              </svg>
-              <div class="hw-gauge-pct">0%</div>
+            <!-- Doble gauge: Uso (izquierda) + Salud (derecha) -->
+            <div class="hw-gauges-pair">
+              <div class="hw-gauge-col">
+                <span class="hw-gauge-sublabel">Uso</span>
+                <div class="hw-gauge-wrap" id="hw-gauge-ram">
+                  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <circle class="hw-gauge-track" cx="50" cy="50" r="40" />
+                    <circle class="hw-gauge-circle" cx="50" cy="50" r="40" />
+                  </svg>
+                  <div class="hw-gauge-pct">0%</div>
+                </div>
+              </div>
+              <div class="hw-gauge-col">
+                <div class="hw-gauge-sublabel-row">
+                  <span class="hw-gauge-sublabel">Salud</span>
+                  <button class="hw-salud-info-btn" data-target="hw-salud-ram" title="¿Por qué esta puntuación?">?</button>
+                </div>
+                <div class="hw-gauge-wrap" id="hw-gauge-ram-salud">
+                  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <circle class="hw-gauge-track" cx="50" cy="50" r="40" />
+                    <circle class="hw-gauge-circle" cx="50" cy="50" r="40" />
+                  </svg>
+                  <div class="hw-gauge-pct">—</div>
+                </div>
+              </div>
             </div>
             <div class="hw-meta-list">
               <span class="hw-meta-label" data-i18n="hardware.total">Total</span>
@@ -839,11 +878,19 @@
           <div class="hw-chart" id="hw-chart-ram" title="Historial RAM">
             <svg viewBox="0 0 300 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"></svg>
           </div>
+          <!-- Panel de explicación de salud RAM (oculto por defecto) -->
+          <div class="hw-salud-detalle" id="hw-salud-ram" hidden></div>
         </div>
 
         <!-- Tarjeta Disco -->
         <div class="hw-card" id="hw-card-disco">
-          <p class="hw-card-titulo" data-i18n="hardware.disco_titulo">Almacenamiento</p>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <p class="hw-card-titulo" data-i18n="hardware.disco_titulo" style="margin:0;">Almacenamiento</p>
+            <span id="hw-disco-salud-badge" class="hw-disco-salud-badge" style="display:none;"></span>
+            <button class="hw-salud-info-btn" id="hw-disco-info-btn" data-target="hw-salud-disco" title="¿Por qué este estado?" style="display:none;">?</button>
+          </div>
+          <!-- Panel de explicación de salud disco (oculto por defecto) -->
+          <div class="hw-salud-detalle" id="hw-salud-disco" hidden></div>
           <!-- Velocidades de I/O globales -->
           <div class="hw-meta-list" style="margin-bottom:8px">
             <span class="hw-meta-label" data-i18n="hardware.lectura">Lectura</span>
@@ -1017,6 +1064,16 @@
             </div>
           </div>
 
+          <!-- Tutorial -->
+          <div class="cfg-section">
+            <div class="cfg-section-titulo">Ayuda</div>
+            <div class="cfg-field">
+              <button class="scan-btn scan-btn-secondary" id="cfg-btn-tutorial">
+                🎓 Ver tutorial de la aplicación
+              </button>
+            </div>
+          </div>
+
           <!-- Footer -->
           <div class="cfg-footer">
             <button class="scan-btn" id="cfg-guardar-btn" data-i18n="config.guardar_btn">Guardar cambios</button>
@@ -1084,6 +1141,24 @@
 <!-- Toast container (reemplaza #loading) -->
 <div id="toast-container"></div>
 
+<!-- ── Tutorial de primera vez ───────────────────────────────────────────── -->
+<div id="tutorial-overlay" class="oculto" role="dialog" aria-modal="true" aria-label="Tutorial de ESTICC">
+  <div id="tutorial-card">
+    <span id="tut-icono"></span>
+    <div id="tut-dots"></div>
+    <div id="tut-titulo"></div>
+    <div id="tut-desc"></div>
+    <div class="tut-nav">
+      <button id="tut-btn-omitir">Omitir tutorial</button>
+      <div class="tut-nav-derecha">
+        <button id="tut-btn-anterior" class="tut-btn" style="display:none;">← Anterior</button>
+        <button id="tut-btn-siguiente" class="tut-btn">Siguiente →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/tutorial.js"></script>
 <script src="js/simulador.js"></script>
 <script src="js/enciclopedia.js"></script>
 <script src="js/i18n.js"></script>

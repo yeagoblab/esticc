@@ -19,15 +19,23 @@
 
   // Valores por defecto usados cuando el usuario abre la app por primera vez o no hay config guardada
   const DEFAULTS = {
-    rol:               'estudiante',   // Perfil de usuario inicial: el más básico y educativo
-    tema:              'oscuro',       // Tema visual por defecto: fondo oscuro (GitHub-style)
-    idioma:            'es',           // Idioma por defecto: español
-    historial_local:   true,           // Guardar historial de análisis en localStorage por defecto
-    ruta_exportacion:  '',             // Ruta de exportación de PDF vacía (el usuario la rellena)
-    tiempo_muestreo:   'balanceado',   // 3 segundos de muestreo al analizar (equilibrio velocidad/precisión)
-    autoscan_inicio:   false,          // No auto-escanear al abrir por defecto (requiere activación explícita)
-    recordatorio_dias: 7,              // Mostrar recordatorio si no se analiza en 7 días (una semana)
+    rol:                  'estudiante',  // Perfil de usuario inicial: el más básico y educativo
+    tema:                 'oscuro',      // Tema visual por defecto: fondo oscuro (GitHub-style)
+    idioma:               'es',          // Idioma por defecto: español
+    historial_local:      true,          // Guardar historial de análisis en localStorage por defecto
+    ruta_exportacion:     '',            // Ruta de exportación de PDF vacía (el usuario la rellena)
+    tiempo_muestreo:      'balanceado',  // 3 segundos de muestreo al analizar (equilibrio velocidad/precisión)
+    autoscan_inicio:      false,         // No auto-escanear al abrir por defecto (requiere activación explícita)
+    recordatorio_dias:    7,             // Mostrar recordatorio si no se analiza en 7 días (una semana)
+    tutorial_completado:  false,         // false = mostrar tutorial en el primer arranque; se pone true al completarlo o al pulsar "Omitir"
   };
+
+  // Config activa en memoria — se actualiza tras cargar desde IPC y al guardar cambios.
+  // Necesario para que leerFormulario() preserve claves que no son controles del formulario
+  // (concretamente tutorial_completado, que no tiene ningún control en el panel de Configuración).
+  // Sin esta variable, leerFormulario() siempre devolvería tutorial_completado: false,
+  // y el tutorial se relanzaría en cada guardado de configuración.
+  let cfgActual = Object.assign({}, DEFAULTS);
 
   // ── Carga y guardado ─────────────────────────────────────────────────────────
 
@@ -260,14 +268,17 @@
 
     // Construir el objeto de configuración leyendo cada control; si el control no existe, usar DEFAULTS
     return {
-      rol:               getRol(),
-      tema:              getTema(),
-      idioma:            getIdioma(),
-      historial_local:   historialCb ? historialCb.checked   : DEFAULTS.historial_local,
-      autoscan_inicio:   autoscanCb  ? autoscanCb.checked    : DEFAULTS.autoscan_inicio,
-      recordatorio_dias: recSelect   ? recSelect.value       : DEFAULTS.recordatorio_dias,  // String 'nunca'/'7'/etc.
-      ruta_exportacion:  rutaInput   ? rutaInput.value.trim(): DEFAULTS.ruta_exportacion,   // trim() elimina espacios
-      tiempo_muestreo:   getMuestreo(),
+      rol:                 getRol(),
+      tema:                getTema(),
+      idioma:              getIdioma(),
+      historial_local:     historialCb ? historialCb.checked    : DEFAULTS.historial_local,
+      autoscan_inicio:     autoscanCb  ? autoscanCb.checked     : DEFAULTS.autoscan_inicio,
+      recordatorio_dias:   recSelect   ? recSelect.value        : DEFAULTS.recordatorio_dias,  // String 'nunca'/'7'/etc.
+      ruta_exportacion:    rutaInput   ? rutaInput.value.trim() : DEFAULTS.ruta_exportacion,   // trim() elimina espacios
+      tiempo_muestreo:     getMuestreo(),
+      // tutorial_completado no tiene control en el formulario: se preserva de cfgActual (memoria)
+      // para que guardar la configuración desde el panel no lo resetee a false involuntariamente.
+      tutorial_completado: cfgActual.tutorial_completado ?? DEFAULTS.tutorial_completado,
     };
   }
 
@@ -282,8 +293,17 @@
     poblarFormulario(cfgLocal);
 
     const cfg = await cargarConfig();  // Leer desde %APPDATA% (async, puede tardar ~50ms)
+    cfgActual = cfg;              // Actualizar el estado en memoria
     applyAll(cfg);               // Re-aplicar si difiere de la caché local
     poblarFormulario(cfg);
+
+    // Lanzar tutorial si es la primera vez (tutorial_completado === false).
+    // Se comprueba DESPUÉS de cargar la config definitiva desde IPC para evitar que
+    // un valor incorrecto en localStorage (ej. por reinstalación) bloquee el tutorial.
+    // El operador ?. es seguro: si tutorial.js no se cargó correctamente, simplemente no hace nada.
+    if (!cfg.tutorial_completado) {
+      window.ESTICC_TUTORIAL?.lanzar?.();
+    }
 
     // ── Botones de grupo: respuesta inmediata al hacer clic ──────────────────────
     // Todos los botones de grupo (rol, tema, idioma, muestreo) comparten la misma lógica:
@@ -309,6 +329,7 @@
     if (formBtn) {
       formBtn.addEventListener('click', async () => {
         const nueva = leerFormulario();   // Leer el estado actual de todos los controles
+        cfgActual = nueva;                // Sincronizar estado en memoria
         await guardarConfig(nueva);       // Persistir en %APPDATA% y en localStorage
         applyAll(nueva);                  // Re-aplicar todo (especialmente rol, por si cambió)
 

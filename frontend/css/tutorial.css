@@ -1,0 +1,156 @@
+/* ── Tutorial de primera vez ──────────────────────────────────────────────── */
+
+#tutorial-overlay {
+  position: fixed;       /* Cubre toda la ventana independientemente del scroll */
+  inset: 0;              /* Equivale a top:0 right:0 bottom:0 left:0 en una sola línea */
+  background: rgba(0, 0, 0, 0.72);  /* Oscurecimiento semitransparente para enfocar la atención en la tarjeta */
+  z-index: 10000;        /* Por encima de cualquier otro elemento de la UI (toasts, modales, etc.) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: tut-fade-in 0.22s ease;  /* Entrada suave para no sobresaltar al usuario */
+}
+
+/* La clase 'oculto' la gestiona tutorial.js: se añade al cerrar y se quita al lanzar */
+#tutorial-overlay.oculto { display: none; }
+
+@keyframes tut-fade-in {
+  from { opacity: 0; }  /* Inicio invisible */
+  to   { opacity: 1; }  /* Final completamente opaco */
+}
+
+#tutorial-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  width: 500px;
+  max-width: calc(100vw - 48px);  /* En pantallas pequeñas: 24px de margen a cada lado */
+  padding: 32px 28px 24px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.65);  /* Sombra pronunciada para separar la tarjeta del overlay oscuro */
+  animation: tut-slide-in 0.22s ease;  /* Entra deslizándose desde abajo para parecer una notificación emergente */
+}
+
+@keyframes tut-slide-in {
+  from { opacity: 0; transform: translateY(14px); }  /* Empieza desplazada 14px hacia abajo e invisible */
+  to   { opacity: 1; transform: translateY(0);    }  /* Llega a su posición natural */
+}
+
+/* ── Ícono del paso ──────────────────────────────────────────────────────── */
+
+#tut-icono {
+  font-size: 44px;
+  text-align: center;
+  display: block;
+  margin-bottom: 18px;
+  line-height: 1;
+}
+
+/* ── Dots de progreso ────────────────────────────────────────────────────── */
+
+#tut-dots {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  margin-bottom: 22px;
+}
+
+.tut-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);  /* Gris por defecto: paso no activo */
+  transition: background 0.2s, transform 0.2s;  /* Animación suave al cambiar de paso */
+}
+
+.tut-dot.activo {
+  background: var(--accent);  /* Azul: indica el paso actualmente visible */
+  transform: scale(1.25);     /* Ligeramente más grande para resaltarlo visualmente */
+}
+
+/* ── Contenido del paso ──────────────────────────────────────────────────── */
+
+#tut-titulo {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+#tut-desc {
+  font-size: 13px;
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.65;
+  white-space: pre-line;  /* Respeta los saltos de línea \n en las cadenas de desc del array PASOS */
+  margin-bottom: 30px;
+}
+
+/* ── Barra de navegación ─────────────────────────────────────────────────── */
+
+.tut-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#tut-btn-omitir {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  padding: 4px 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;  /* Separación entre texto y línea para mejor legibilidad */
+}
+
+#tut-btn-omitir:hover { color: var(--text); }  /* Refuerzo visual al hacer hover */
+
+.tut-nav-derecha {
+  display: flex;
+  gap: 8px;  /* Espacio entre los botones "Anterior" y "Siguiente" */
+}
+
+.tut-btn {
+  background: var(--surface);
+  color: var(--accent);
+  border: 1px solid var(--accent);  /* Estilo outline: menos peso visual que el botón primario */
+  padding: 7px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  font-family: inherit;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.tut-btn:hover { background: rgba(88, 166, 255, 0.1); }  /* Fondo azul sutilísimo al hacer hover */
+
+.tut-btn.primario {
+  /* Estado final del tutorial ("¡Empezar!"): relleno sólido de color accent para llamar la atención */
+  background: var(--accent);
+  color: #000;          /* Texto negro sobre fondo azul claro: contraste WCAG AA */
+  border-color: var(--accent);
+}
+
+.tut-btn.primario:hover { opacity: 0.85; background: var(--accent); }  /* Atenuar ligeramente al hover */
+
+/* ── Resaltado de elemento de UI ─────────────────────────────────────────── */
+
+.tutorial-highlight {
+  outline: 2px solid var(--accent) !important;  /* !important para superar cualquier outline del componente */
+  outline-offset: 4px !important;               /* Espacio entre el borde del elemento y el outline, para que respire */
+  border-radius: 6px;                           /* Suavizar las esquinas del outline aunque el elemento no las tenga */
+  animation: tut-pulso 1.4s ease-in-out infinite;  /* Pulso infinito mientras el paso está activo */
+  position: relative;                           /* Necesario para que z-index surta efecto */
+  z-index: 1;                                   /* Elevar sobre otros elementos del mismo stacking context sin romper el layout */
+}
+
+/* El pulso oscila entre el color accent (azul lleno) y el mismo color al 30% de opacidad.
+ * Esto simula un "respiro" que atrae la mirada sin resultar agresivo. */
+@keyframes tut-pulso {
+  0%, 100% { outline-color: var(--accent); }           /* Azul lleno en los extremos */
+  50%       { outline-color: rgba(88, 166, 255, 0.3); } /* Casi transparente en el centro */
+}

@@ -21,11 +21,12 @@ Nota de concurrencia:
 """
 from __future__ import annotations  # Permite "dict | None" en Python 3.8 y 3.9
 
-import socket                        # Para obtener el nombre del equipo (hostname)
+import socket                        # Para obtener hostname e IP
+import psutil                        # Para obtener la dirección MAC de la interfaz activa
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone  # Timestamp UTC del momento del informe
 
-# Importamos directamente los 5 escáneres de auditoría local.
+# Importamos directamente los escáneres de auditoría y hardware.
 # No usamos el router IPC porque estamos en el mismo proceso Python:
 # llamarlos directamente es más rápido y sencillo.
 from modulo_02_auditoria import (
@@ -35,6 +36,62 @@ from modulo_02_auditoria import (
     analisis_autoinicio, # Entradas de registro Run y tareas programadas
     verificador_parches, # Actualizaciones pendientes de Windows
 )
+from modulo_06_hardware import escaner_hardware  # CPU, RAM, disco, batería + salud/vida útil
+
+
+def _ip_principal() -> str:
+    """
+    Devuelve la IP principal del equipo (interfaz con ruta por defecto).
+    Usa el truco de conectar a una IP ficticia: el SO consulta la tabla de rutas
+    y asigna la interfaz correcta sin enviar ningún paquete real.
+    """
+    try:
+        # SOCK_DGRAM + connect a IP no enrutable: el kernel resuelve la interfaz sin
+        # abrir ninguna conexión real (UDP sin SYN, solo consulta la tabla de rutas)
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.settimeout(0)                      # No bloqueante: falla inmediatamente si no hay red
+            s.connect(('10.254.254.254', 1))     # Destino ficticio — 10.254.254.254 no existe en ninguna red real
+            return s.getsockname()[0]            # La IP local que el SO asignaría para ese destino
+    except Exception:
+        pass
+    # Fallback: iterar interfaces buscando la primera IPv4 que no sea loopback
+    try:
+        for addrs in psutil.net_if_addrs().values():
+            for addr in addrs:
+                # AF_INET = IPv4; excluir 127.x.x.x (loopback) y 169.254.x.x (APIPA/sin configurar)
+                if addr.family == socket.AF_INET and not addr.address.startswith('127.'):
+                    return addr.address
+    except Exception:
+        pass
+    return '—'   # Último recurso si no hay ninguna interfaz de red activa
+
+
+def _mac_de_interfaz(ip: str) -> str:
+    """
+    Devuelve la dirección MAC de la interfaz que tiene la IP indicada.
+    Itera psutil.net_if_addrs() buscando la interfaz que coincide con la IP,
+    luego extrae la dirección de tipo AF_LINK (capa 2) de esa misma interfaz.
+    """
+    if ip == '—':
+        return '—'  # Sin IP no tiene sentido buscar MAC
+    try:
+        for iface, addrs in psutil.net_if_addrs().items():
+            # Comprobar si esta interfaz tiene la IP que buscamos (puede tener varias IPs)
+            tiene_ip = any(
+                a.family == socket.AF_INET and a.address == ip
+                for a in addrs
+            )
+            if tiene_ip:
+                for addr in addrs:
+                    # AF_LINK es la familia de capa 2 (MAC) en Windows y Linux
+                    if addr.family == psutil.AF_LINK and addr.address:
+                        # Windows usa guiones (00-1A-2B), normalizar a dos puntos (00:1A:2B)
+                        mac = addr.address.replace('-', ':').upper()
+                        if mac != '00:00:00:00:00:00':  # Descartar MACs nulas (interfaces virtuales)
+                            return mac
+    except Exception:
+        pass
+    return '—'
 
 
 def _data(resultado: dict) -> dict | list:
@@ -273,25 +330,29 @@ def run() -> dict:
     el frontend pueda mostrar el resumen por módulo sin hacer llamadas
     IPC adicionales.
     """
-    timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")  # Momento del informe
+    timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     try:
-        hostname = socket.gethostname()  # Nombre del equipo para la cabecera del informe
+        hostname = socket.gethostname()
     except Exception:
-        hostname = "Equipo local"  # Fallback si el SO no devuelve el hostname
+        hostname = "Equipo local"
 
-    # Los 4 escáneres lentos/independientes se lanzan en paralelo.
-    # verificador_parches puede tardar hasta 60s → marcar el cuello de botella real.
-    # escaner_procesos se ejecuta en serie porque su time.sleep(0.3) de muestreo
-    # de CPU no se beneficia de threads (no hay I/O que libere el GIL).
+    ip  = _ip_principal()
+    mac = _mac_de_interfaz(ip)
+
+    # Los escáneres lentos e independientes se lanzan en paralelo.
+    # escaner_hardware usa muestreo=2 (modo rápido) para no alargar el informe.
+    # escaner_procesos queda en serie porque su time.sleep(0.3) de muestreo de CPU
+    # no libera el GIL y no se beneficia de threads.
     _paralelos = {
-        "defensas":   estado_defensas.run,    # ~1-2s (PowerShell CIM)
-        "puertos":    escaner_puertos.run,    # <1s  (psutil.net_connections)
-        "autoinicio": analisis_autoinicio.run,# ~2s  (registro + schtasks)
-        "parches":    verificador_parches.run,# 5-60s (WUA/PSWindowsUpdate)
+        "defensas":   estado_defensas.run,                          # ~1-2s (PowerShell CIM)
+        "puertos":    escaner_puertos.run,                          # <1s  (psutil.net_connections)
+        "autoinicio": analisis_autoinicio.run,                      # ~2s  (registro + schtasks)
+        "parches":    verificador_parches.run,                      # 5-60s (WUA/PSWindowsUpdate)
+        "hardware":   lambda: escaner_hardware.run(muestreo=2),     # ~3-4s (CPU sampling + WMI)
     }
     resultados_paralelos: dict = {}
-    with ThreadPoolExecutor(max_workers=4) as pool:
+    with ThreadPoolExecutor(max_workers=5) as pool:
         futures = {pool.submit(fn): nombre for nombre, fn in _paralelos.items()}
         for fut in as_completed(futures):
             resultados_paralelos[futures[fut]] = fut.result()
@@ -300,6 +361,7 @@ def run() -> dict:
     res_puertos    = resultados_paralelos["puertos"]
     res_autoinicio = resultados_paralelos["autoinicio"]
     res_parches    = resultados_paralelos["parches"]
+    res_hardware   = resultados_paralelos["hardware"]
     res_procesos   = escaner_procesos.run()   # ~0.5s (psutil + sleep 300ms) — serie
 
     # Extraer el campo 'data' de cada resultado, con fallback a tipo vacío si hubo error
@@ -308,6 +370,7 @@ def run() -> dict:
     d_procesos   = _data(res_procesos)
     d_autoinicio = _data(res_autoinicio)
     d_parches    = _data(res_parches)
+    d_hardware   = _data(res_hardware)   # {"cpu":…, "ram":…, "disco":…, "bateria":…, "salud":…}
 
     # Garantizar que cada variable tiene el tipo correcto aunque _data devuelva {}/[]
     # Esto previene TypeError en _calcular_riesgo si un escáner falla en tiempo de ejecución
@@ -316,25 +379,57 @@ def run() -> dict:
     if not isinstance(d_procesos,   list): d_procesos   = []
     if not isinstance(d_autoinicio, dict): d_autoinicio = {}
     if not isinstance(d_parches,    dict): d_parches    = {}
+    if not isinstance(d_hardware,   dict): d_hardware   = {}
 
     # Calcular la puntuación de riesgo y la lista de hallazgos
     puntuacion, hallazgos = _calcular_riesgo(
         d_defensas, d_puertos, d_procesos, d_autoinicio, d_parches
     )
 
+    # ── Construir la ficha técnica de la máquina para la cabecera del informe ──
+    # Reutiliza los datos ya recogidos por escaner_hardware (no hace consultas extra)
+    cpu_hw   = d_hardware.get("cpu",     {})  # Modelo, núcleos, frecuencia, temperatura
+    ram_hw   = d_hardware.get("ram",     {})  # Total GB, disponible GB, velocidad MHz
+    disco_hw = d_hardware.get("disco",   {})  # Particiones y velocidades de I/O
+    bat_hw   = d_hardware.get("bateria", {})  # presente: True/False (distingue portátil de sobremesa)
+
+    # Construir el resumen de discos: "C:\ 476.8 GB SSD, D:\ 931.5 GB HDD"
+    discos_txt = ", ".join(
+        f"{p['unidad']} {p['total_gb']} GB {p.get('tipo', '')}".strip()
+        for p in disco_hw.get("particiones", [])
+    ) or "—"
+
+    # Formatear el modelo de CPU con núcleos: "Intel Core i7 (6C/12T)"
+    nucleos     = cpu_hw.get("nucleos_fisicos")
+    nucleos_log = cpu_hw.get("nucleos_logicos")
+    cpu_txt     = cpu_hw.get("modelo", "—")
+    if nucleos:
+        cpu_txt += f" ({nucleos}C/{nucleos_log}T)" if nucleos_log else f" ({nucleos} núcleos)"
+
+    maquina = {
+        "hostname": hostname,                                              # Nombre NetBIOS del equipo
+        "ip":       ip,                                                    # IP de la interfaz activa
+        "mac":      mac,                                                   # MAC de la interfaz activa
+        "tipo":     "Portátil" if bat_hw.get("presente") else "Sobremesa",# Inferido de la presencia de batería
+        "cpu":      cpu_txt,                                               # "Modelo (XC/YT)"
+        "ram":      f"{ram_hw.get('total_gb', '—')} GB" if ram_hw.get('total_gb') else "—",
+        "discos":   discos_txt,                                            # Resumen de particiones
+    }
+
     # Respuesta IPC estándar con todos los datos del informe
     return {
         "ok": True,
         "data": {
-            "timestamp":  timestamp,   # Cuándo se generó el informe (ISO 8601 UTC)
-            "hostname":   hostname,    # Nombre del equipo analizado
-            "riesgo":     puntuacion,  # {"puntos": 0-100, "nivel": "bajo/medio/alto/critico"}
-            "hallazgos":  hallazgos,   # Lista de problemas encontrados con nivel y descripción
-            # Datos crudos de cada escáner (el frontend los usa para el resumen por módulo):
-            "defensas":   d_defensas,   # Estado de Firewall, Defender, BitLocker
-            "puertos":    d_puertos,    # Lista de conexiones TCP activas
-            "procesos":   d_procesos,   # Lista de procesos con métricas
-            "autoinicio": d_autoinicio, # Entradas de registro Run y tareas programadas
-            "parches":    d_parches,    # Parches pendientes y última actualización
+            "timestamp":  timestamp,
+            "hostname":   hostname,
+            "maquina":    maquina,      # Ficha técnica del equipo para la cabecera
+            "riesgo":     puntuacion,
+            "hallazgos":  hallazgos,
+            "defensas":   d_defensas,
+            "puertos":    d_puertos,
+            "procesos":   d_procesos,
+            "autoinicio": d_autoinicio,
+            "parches":    d_parches,
+            "hardware":   d_hardware,
         },
     }

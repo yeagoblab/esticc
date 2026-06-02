@@ -101,7 +101,7 @@
 
     // Animación de pasos: activar uno a uno cada ~3 s (estimación)
     const intervalIds = [];
-    const tiemposEstimados = [0, 3000, 6000, 12000, 18000]; // defensas, puertos, procesos, autoinicio, parches
+    const tiemposEstimados = [0, 3000, 6000, 12000, 18000, 21000]; // +hardware al final
     pasos.forEach((el, i) => {
       el.className = 'rep-paso';
       if (i === 0) {
@@ -154,7 +154,7 @@
   // ── Constructor del HTML del informe ────────────────────────────────────────
 
   function buildReportHTML(d) {
-    const { riesgo, hallazgos, defensas, puertos, procesos, autoinicio, parches, timestamp, hostname } = d;
+    const { riesgo, hallazgos, defensas, puertos, procesos, autoinicio, parches, hardware, maquina, timestamp } = d;
 
     const fecha = timestamp
       ? new Date(timestamp).toLocaleString('es-ES', { dateStyle: 'long', timeStyle: 'short' })
@@ -163,13 +163,17 @@
     const color = COLORES[riesgo.nivel] || '#8b949e';
     const nivelLabel = (riesgo.nivel || 'desconocido').toUpperCase();
 
+    // Fallback por si el backend es antiguo y no envía `maquina`
+    const maq = maquina || { hostname: d.hostname || '—', ip: '—', mac: '—', tipo: '—', cpu: '—', ram: '—', discos: '—' };
+
     return `
       <div id="report-print-area">
 
-        ${seccionCabecera(hostname, fecha)}
+        ${seccionCabecera(maq, fecha)}
         ${seccionRiesgo(riesgo, color, nivelLabel)}
         ${seccionHallazgos(hallazgos, color)}
         ${seccionResumen(defensas, puertos, procesos, autoinicio, parches)}
+        ${hardware ? seccionSaludHardware(hardware) : ''}
         ${seccionRecomendaciones(hallazgos)}
         ${seccionFooter(fecha)}
 
@@ -178,16 +182,48 @@
 
   // ── Secciones del informe ────────────────────────────────────────────────────
 
-  function seccionCabecera(hostname, fecha) {
+  function seccionCabecera(maq, fecha) {
+    // Separar la información de la máquina en dos columnas temáticas:
+    // izquierda = identidad de red (quién es el equipo en la red);
+    // derecha = componentes de hardware (qué tiene por dentro).
+    // Esta separación facilita la lectura rápida y el encuadre forense del informe.
+    const colRed = [
+      ['Equipo',         maq.hostname],
+      ['Dirección IP',   maq.ip],
+      ['Dirección MAC',  maq.mac,  true],  // true → clase rep-mono: fuente monospace para la dirección MAC
+      ['Tipo de equipo', maq.tipo],
+    ];
+
+    const colHW = [
+      ['Procesador',      maq.cpu],
+      ['Memoria RAM',     maq.ram],
+      ['Almacenamiento',  maq.discos],
+    ];
+
+    // Helper local: construye una fila clave/valor con escape HTML y tipografía opcional monospace
+    const fila = (clave, valor, mono = false) => `
+      <div class="rep-maquina-row">
+        <span class="rep-maquina-key">${esc(clave)}</span>
+        <span class="rep-maquina-val${mono ? ' rep-mono' : ''}">${esc(valor || '—')}</span>
+      </div>`;
+
     return `
-      <div class="rep-header">
+      <div class="rep-header-top">
         <div>
           <div class="rep-logo">ESTICC</div>
-          <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">Informe de Seguridad del Sistema</div>
+          <div class="rep-logo-sub">Informe de Seguridad del Sistema</div>
         </div>
-        <div class="rep-header-meta">
-          <div class="rep-hostname">${esc(hostname)}</div>
-          <div>${esc(fecha)}</div>
+        <div class="rep-header-fecha">${esc(fecha)}</div>
+      </div>
+
+      <div class="rep-maquina-card">
+        <div class="rep-maquina-grid">
+          <div class="rep-maquina-col">
+            ${colRed.map(([k, v, m]) => fila(k, v, !!m)).join('')}
+          </div>
+          <div class="rep-maquina-col">
+            ${colHW.map(([k, v]) => fila(k, v)).join('')}
+          </div>
         </div>
       </div>`;
   }
@@ -340,6 +376,119 @@
           ${cardProcesos}
           ${cardAutoinicio}
           ${cardParches}
+        </div>
+      </div>`;
+  }
+
+  // ── Sección: Salud del dispositivo ──────────────────────────────────────────
+
+  function seccionSaludHardware(hw) {
+    // Si el sidecar no envió el objeto hardware o no calculó salud, omitir la sección entera.
+    // Esto ocurre cuando el usuario genera el informe con una versión antigua del backend.
+    if (!hw || !hw.salud) return '';
+
+    const s   = hw.salud;     // Objeto con los scores y factores de salud de cada componente
+    const cpu = hw.cpu  || {};
+    const ram = hw.ram  || {};
+    const bat = hw.bateria || {};
+
+    // colorSalud: escala INVERSA a la del gauge de uso (donde rojo = nivel alto).
+    // Aquí verde = componente sano, rojo = componente deteriorado.
+    // Se definen como funciones internas porque solo se usan en esta sección.
+    function colorSalud(pct) {
+      if (pct == null) return '#8b949e';  // Gris neutro: sin datos disponibles
+      return pct >= 80 ? '#3fb950' : pct >= 50 ? '#d29922' : '#f85149';
+    }
+
+    // nivelSalud: etiqueta textual del score para usuarios no técnicos que no interpretan porcentajes
+    function nivelSalud(pct) {
+      if (pct == null) return 'Sin datos';
+      return pct >= 80 ? 'Buena' : pct >= 50 ? 'Moderada' : 'Deteriorada';
+    }
+
+    // compCard: constructor de una tarjeta de componente de hardware para el informe.
+    // Se usa como helper en lugar de repetir el mismo HTML 4 veces (CPU, RAM, disco, batería).
+    // slice(0, 3): limitar a 3 factores en el informe para no desbordarlo en caso de muchos factores.
+    function compCard(icono, nombre, pct, factores, consejo, extraInfo) {
+      const color  = colorSalud(pct);
+      const pctTxt = pct != null ? `${pct}%` : '—';  // Guion si no hay datos
+      const nivel  = nivelSalud(pct);
+
+      const iconosF = { ok: '✅', warn: '⚠️', danger: '🔴' };
+      const factoresHTML = (factores || []).slice(0, 3).map(f =>
+        `<div class="rep-salud-factor">
+          <span>${iconosF[f.tipo] || '•'}</span>
+          <span>${esc(f.texto)}</span>
+        </div>`
+      ).join('');
+
+      // El consejo solo aparece si hay algo que mejorar (null = todo en orden)
+      const consejoHTML = consejo
+        ? `<div class="rep-salud-consejo">💡 ${esc(consejo)}</div>`
+        : '';
+
+      // extraInfo: contexto numérico del componente (uso actual, temperatura, GB disponibles, etc.)
+      // inline style porque este bloque no merece una clase CSS propia en el informe
+      const extraHTML = extraInfo
+        ? `<div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;">${esc(extraInfo)}</div>`
+        : '';
+
+      // Armar la tarjeta del componente con header (nombre + score), nivel, contexto, factores y consejo
+      return `
+        <div class="rep-salud-comp">
+          <div class="rep-salud-header">
+            <span class="rep-salud-nombre">${icono} ${esc(nombre)}</span>
+            <span class="rep-salud-pct" style="color:${color}">${pctTxt}</span>
+          </div>
+          <div class="rep-salud-nivel" style="color:${color}">${nivel}</div>
+          ${extraHTML}
+          <div class="rep-salud-factores">${factoresHTML}</div>
+          ${consejoHTML}
+        </div>`;
+    }
+
+    // Líneas de contexto para cada tarjeta: muestran el estado actual del componente
+    // (uso en tiempo real, temperatura, GB disponibles) sin repetir los factores de salud
+    const cpuExtra = cpu.uso_pct != null
+      ? `Uso actual: ${cpu.uso_pct}%${cpu.temperatura_c != null ? ` · Temp: ${cpu.temperatura_c} °C` : ''} · ${cpu.nucleos_fisicos ?? '—'} núcleos`
+      : null;
+
+    const ramExtra = ram.total_gb != null
+      ? `${ram.disponible_gb ?? '—'} GB disponibles de ${ram.total_gb ?? '—'} GB totales`
+      : null;
+
+    // discoTxt proviene del análisis S.M.A.R.T. del sidecar (ej. "Óptimo", "Advertencia")
+    const discoTxt = s.disco_txt ? `Estado S.M.A.R.T.: ${s.disco_txt}` : null;
+
+    const batExtra = bat.presente
+      ? `Carga actual: ${bat.porcentaje ?? '—'}% · ${bat.cargando ? 'Cargando' : 'Descargando'}`
+      : null;
+
+    // Si no hay batería (desktop), sustituir los factores del sidecar por un mensaje neutral
+    // para que la tarjeta no aparezca vacía ni confunda al usuario de sobremesa
+    const batFactores = bat.presente
+      ? s.bateria_factores
+      : [{ tipo: 'ok', texto: 'Equipo de sobremesa o sin batería detectada' }];
+
+    // Construir las cuatro tarjetas de componente.
+    // Para batería: si el equipo no tiene batería, pasar pct=null para que muestre "Sin datos"
+    const cpuCard   = compCard('🖥️', 'Procesador (CPU)',  s.cpu_pct,     s.cpu_factores,     s.cpu_consejo,     cpuExtra);
+    const ramCard   = compCard('🧠', 'Memoria RAM',       s.ram_pct,     s.ram_factores,     s.ram_consejo,     ramExtra);
+    const discoCard = compCard('💾', 'Almacenamiento',    s.disco_pct,   s.disco_factores,   s.disco_consejo,   discoTxt);
+    const batCard   = compCard('🔋', 'Batería',           bat.presente ? s.bateria_pct : null, batFactores, bat.presente ? s.bateria_consejo : null, batExtra);
+
+    return `
+      <div class="rep-section">
+        <h3>Salud del dispositivo</h3>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">
+          Estado de vida útil del hardware basado en temperatura, análisis de memoria y diagnóstico S.M.A.R.T.
+          Una puntuación alta indica que el componente está en buenas condiciones; una baja indica deterioro o riesgo.
+        </p>
+        <div class="rep-salud-grid">
+          ${cpuCard}
+          ${ramCard}
+          ${discoCard}
+          ${batCard}
         </div>
       </div>`;
   }

@@ -39,14 +39,14 @@
 }
 
 /* ── Cabecera del informe ────────────────────────────── */
-.rep-header {
+
+/* Bloque superior: logo + título + fecha */
+.rep-header-top {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid var(--border);
+  margin-bottom: 14px;
 }
 
 .rep-logo {
@@ -56,17 +56,76 @@
   letter-spacing: 1px;
 }
 
-.rep-header-meta {
-  text-align: right;
-  font-size: 12px;
+.rep-logo-sub {
+  font-size: 11px;
   color: var(--text-dim);
-  line-height: 1.6;
+  margin-top: 2px;
+  letter-spacing: 0.3px;
 }
 
-.rep-hostname {
-  font-size: 14px;
-  font-weight: 600;
+.rep-header-fecha {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Tarjeta de información de la máquina: encuadra la identidad del equipo analizado.
+ * Usa var(--bg) en lugar de var(--surface) para un contraste ligeramente diferente
+ * al del fondo del panel, haciendo que la ficha "flote" sobre el contenido. */
+.rep-maquina-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+}
+
+/* Grid 2 columnas simétricas: izquierda = red, derecha = hardware.
+ * El gap horizontal (28px) separa visualmente las dos áreas temáticas. */
+.rep-maquina-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 28px;
+}
+
+/* Cada fila de la ficha de máquina alinea la clave y el valor horizontalmente.
+ * align-items:baseline para que valores de distintas alturas queden alineados al texto. */
+.rep-maquina-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(48,54,61,0.35);  /* Separador sutil entre filas */
+  font-size: 12px;
+}
+
+/* La última fila de cada columna no tiene separador inferior para no crear doble borde */
+.rep-maquina-col .rep-maquina-row:last-child {
+  border-bottom: none;
+}
+
+/* Clave (hostname, IP, MAC...): min-width fijo para alinear verticalmente todos los valores
+ * independientemente de la longitud de la clave */
+.rep-maquina-key {
+  color: var(--text-dim);
+  white-space: nowrap;
+  min-width: 110px;  /* Evita que las claves cortas desalineen los valores de la columna */
+  flex-shrink: 0;
+}
+
+.rep-maquina-val {
   color: var(--text);
+  font-weight: 500;
+  word-break: break-word;  /* Partir modelos de CPU muy largos si no caben en una línea */
+}
+
+/* Clase para la dirección MAC y otros valores que se leen mejor en monospace
+ * (cada carácter ocupa el mismo ancho, facilitando la lectura de pares hexadecimales) */
+.rep-mono {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 0.5px;  /* Separación leve entre caracteres para mejorar la legibilidad de la MAC */
 }
 
 /* ── Tarjeta de puntuación de riesgo (Gauge Chart) ───── */
@@ -261,6 +320,87 @@
   padding: 8px 0;
 }
 
+/* ── Sección Salud del dispositivo ──────────────────── */
+
+/* Grid 2×2: cada fila contiene dos componentes (CPU+RAM arriba, disco+batería abajo).
+ * En pantallas pequeñas y en @media print se fuerza a 2 columnas igualmente. */
+.rep-salud-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+/* Tarjeta de un componente (CPU, RAM, disco, batería).
+ * Mismo fondo que .rep-summary-card para coherencia visual dentro del informe. */
+.rep-salud-comp {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+/* Fila superior: nombre del componente a la izquierda, score numérico a la derecha.
+ * El color del score se aplica dinámicamente mediante style= en JS (colorSalud()). */
+.rep-salud-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.rep-salud-nombre {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Porcentaje de salud grande y prominente: el número grande da información al primer vistazo */
+.rep-salud-pct {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;  /* Evitar que el line-height aumente la altura de la fila header */
+}
+
+/* Texto del nivel debajo del score: traduce el número a lenguaje natural para usuarios no técnicos */
+.rep-salud-nivel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;  /* Separación antes de los factores */
+}
+
+/* Lista de factores: columna vertical porque cada factor puede tener texto largo */
+.rep-salud-factores {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* Cada factor: emoji de estado + descripción textual.
+ * align-items:flex-start para textos multilinea (el emoji no debe centrarse verticalmente). */
+.rep-salud-factor {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-dim);  /* Atenuado: los factores son contexto, no el dato principal */
+  line-height: 1.45;
+}
+
+/* Bloque de consejo accionable: solo se renderiza cuando el sidecar envía consejo != null.
+ * El borde izquierdo azul lo distingue visualmente de los factores neutros. */
+.rep-salud-consejo {
+  margin-top: 8px;
+  padding: 7px 10px;
+  background: rgba(88, 166, 255, 0.07);  /* Fondo azul muy tenue para indicar "acción" */
+  border-left: 2px solid var(--accent);  /* Línea accent = "hay algo que hacer" */
+  border-radius: 0 5px 5px 0;
+  font-size: 11px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
 /* ── Footer del informe ──────────────────────────────── */
 .rep-footer {
   margin-top: 24px;
@@ -275,55 +415,110 @@
    @media print — oculta la UI y muestra solo el informe
    ══════════════════════════════════════════════════════ */
 @media print {
+  /* Forzar impresión de colores de fondo y texto exactos (sin que el navegador los aclare).
+   * Sin esto, las tarjetas coloreadas (riesgo crítico, badges) aparecerían en blanco. */
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 
-  /* Ocultar toda la UI de ESTICC — incluye sidebar, toasts, banners y paneles no activos */
-  header, nav,
-  #sidebar, #toast-container, #banner-recordatorio, #banner-demo, #panel-simulador,
+  /* ── Ocultar toda la UI de ESTICC ───────────────────── */
+  /* Se listan explícitamente todos los paneles para evitar que alguno escape al print
+   * aunque su display sea diferente a 'block' (ej. grid, flex). */
+  header, nav, #sidebar,
+  #toast-container, #tutorial-overlay,
+  #banner-recordatorio, #banner-demo, #panel-simulador,
   #panel-defensas, #panel-puertos, #panel-procesos,
   #panel-autoinicio, #panel-parches,
   #panel-enciclopedia, #panel-radar,
   #panel-historial, #panel-hardware, #panel-configuracion,
   #enc-modal-overlay { display: none !important; }
 
-  /* Ocultar controles del panel de reportes (botones de acción) */
+  /* Ocultar botones interactivos que no tienen sentido en papel */
   .rep-toolbar, .rep-progress,
-  .card-header button, #btn-generar-informe, #btn-imprimir-informe { display: none !important; }
+  .card-header button,
+  #btn-generar-informe, #btn-imprimir-informe,
+  .rep-hallazgo-link,  /* "Ver módulo →": no hay navegación en papel */
+  .btn-primary, .scan-btn { display: none !important; }
 
-  /* Layout: eliminar el flex del app-layout para que el panel ocupe toda la página */
-  .app-layout { display: block !important; }
+  /* ── Layout de página — liberar overflow para múltiples páginas ─────────── */
+  /* El layout en pantalla usa height:100vh y overflow:hidden para el scroll interno.
+   * En print hay que anularlo o el informe queda recortado a una sola página. */
+  html, body {
+    margin: 0 !important; padding: 0 !important;
+    height: auto !important;          /* Eliminar height:100vh que recorta a 1 página */
+    overflow: visible !important;     /* Permitir flujo de contenido entre páginas    */
+  }
+  /* Fondo blanco y texto negro: contraste máximo para impresión en papel */
+  body { background: #fff !important; color: #1a1a1a !important; font-size: 12px !important; }
 
-  /* Mostrar solo el panel de reportes */
-  main { padding: 0 !important; }
-  #panel-reportes { display: block !important; }
-  .card { border: none !important; padding: 0 !important; background: transparent !important; }
+  /* .app-layout y #content-area también tienen overflow:hidden/height fijos en pantalla */
+  .app-layout, #content-area {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    max-height: none !important;
+  }
 
-  /* Colores claros para impresión */
-  body { background: #fff !important; color: #1a1a1a !important; }
+  main { padding: 8px 0 !important; height: auto !important; }
+  #panel-reportes { display: block !important; }  /* Asegurar que el panel de informes sea visible */
+  /* La .card que envuelve el panel en pantalla no debe aplicar su borde ni sombra en papel */
+  .card { border: none !important; padding: 0 !important; background: transparent !important; box-shadow: none !important; }
+  #reporte-contenido { margin-top: 0 !important; }
 
-  .rep-header        { border-color: #ccc !important; }
-  .rep-riesgo-card   { background: #f5f5f5 !important; }
-  .rep-summary-card  { background: #f9f9f9 !important; border-color: #ddd !important; }
-  .rep-hallazgo      { background: #f9f9f9 !important; }
-  .rep-lista-rec li  { background: #f9f9f9 !important; }
-  .rep-footer        { border-color: #ccc !important; }
+  /* ── Cabecera ────────────────────────────────────────── */
+  .rep-logo       { color: #0050a0 !important; }   /* Azul oscuro visible en papel sin tinta de pantalla */
+  .rep-logo-sub   { color: #555 !important; }
+  .rep-header-fecha { color: #555 !important; }
 
-  .rep-logo          { color: #0050a0 !important; }
-  .rep-section h3    { color: #555 !important; border-color: #ccc !important; }
-  .rep-summary-key   { color: #666 !important; }
+  /* Ficha de máquina: fondo gris muy claro en lugar de var(--bg) que es oscuro en tema oscuro */
+  .rep-maquina-card  { background: #f5f5f5 !important; border-color: #ccc !important; }
+  .rep-maquina-key   { color: #555 !important; }
+  .rep-maquina-val   { color: #111 !important; }
+  .rep-maquina-row   { border-color: #ddd !important; }
+
+  /* ── Secciones ───────────────────────────────────────── */
+  .rep-section h3    { color: #444 !important; border-color: #bbb !important; }
+  /* page-break-inside:avoid previene que una sección se parta entre dos páginas */
+  .rep-section       { page-break-inside: avoid; margin-bottom: 14px !important; }
+
+  /* ── Tarjeta de riesgo ───────────────────────────────── */
+  .rep-riesgo-card   { background: #f5f5f5 !important; border-color: #bbb !important; page-break-inside: avoid; }
+  .rep-nivel-label   { color: #555 !important; }
+  .rep-nivel-desc    { color: #555 !important; }
+  /* El gauge SVG usa colores de pantalla (#30363d como pista); en papel sale mal: ocultarlo.
+   * El valor numérico y la etiqueta de nivel ya informan suficientemente. */
+  .rep-gauge-wrap svg { display: none !important; }
+
+  /* ── Hallazgos ───────────────────────────────────────── */
+  /* page-break-inside:avoid en cada badge evita que un hallazgo se corte entre páginas */
+  .rep-hallazgo-badge { background: #f9f9f9 !important; border-color: #ddd !important; page-break-inside: avoid; }
+  .rep-hallazgo-cat-chip { background: #eee !important; border-color: #ccc !important; color: #555 !important; }
+  .rep-hallazgo-num  { color: #888 !important; }
+  .rep-sin-hallazgos { color: #1a7a30 !important; }
+
+  /* ── Grid de resumen por módulo ──────────────────────── */
+  .rep-summary-card  { background: #f9f9f9 !important; border-color: #ddd !important; page-break-inside: avoid; }
+  .rep-summary-title { color: #111 !important; }
+  .rep-summary-key   { color: #555 !important; }
+  .rep-summary-val   { color: #111 !important; }
   .rep-summary-row   { border-color: #e0e0e0 !important; }
-  .rep-score-bar-bg  { background: #e0e0e0 !important; }
-  .rep-footer        { color: #888 !important; }
+  /* Colores de estado: variantes oscuras de los colores de pantalla, con contraste en papel */
+  .rep-summary-ok    { color: #1a7a30 !important; }   /* Verde oscuro legible en blanco */
+  .rep-summary-warn  { color: #7a5000 !important; }   /* Marrón dorado en lugar del naranja de pantalla */
+  .rep-summary-danger { color: #a00020 !important; }  /* Rojo oscuro para contraste en papel */
 
-  /* Colores de estado en blanco y negro amigable */
-  .rep-summary-ok    { color: #1a7a30 !important; }
-  .rep-summary-warn  { color: #8a6000 !important; }
-  .rep-summary-danger { color: #b00020 !important; }
+  /* ── Sección de salud del hardware ──────────────────── */
+  /* Forzar grid 2 columnas: en papel no hay breakpoints de viewport, solo ancho de página */
+  .rep-salud-grid    { grid-template-columns: repeat(2, 1fr) !important; }
+  .rep-salud-comp    { background: #f9f9f9 !important; border-color: #ddd !important; page-break-inside: avoid; }
+  .rep-salud-nombre  { color: #111 !important; }
+  .rep-salud-factor  { color: #444 !important; }
+  /* Bloque de consejo: fondo azul claro visible en papel, borde azul oscuro */
+  .rep-salud-consejo { background: #eef4ff !important; border-left-color: #0050a0 !important; color: #222 !important; }
 
-  /* Evitar corte de página en hallazgos */
-  .rep-hallazgo-badge, .rep-lista-rec li { page-break-inside: avoid; }
-  .rep-section { page-break-inside: avoid; }
-  .rep-hallazgo-badge { background: #f9f9f9 !important; border-color: #ddd !important; }
-  .rep-gauge-wrap svg { display: none; }
-  .rep-riesgo-card { background: #f5f5f5 !important; }
+  /* ── Recomendaciones ─────────────────────────────────── */
+  .rep-lista-rec li  { background: #f9f9f9 !important; color: #111 !important; page-break-inside: avoid; }
+  .rep-lista-rec li::before { color: #0050a0 !important; }  /* Flecha → en azul visible en papel */
+  .rep-ok-msg        { color: #1a7a30 !important; }
+
+  /* ── Footer ──────────────────────────────────────────── */
+  .rep-footer        { border-color: #ccc !important; color: #777 !important; }
 }

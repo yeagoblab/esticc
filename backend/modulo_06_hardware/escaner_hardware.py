@@ -312,6 +312,244 @@ def _recopilar_eventos() -> list[dict]:
         return []  # JSON malformado → ignorar eventos
 
 
+# ── SALUD / VIDA ÚTIL ────────────────────────────────────────────────────────
+
+def _cpu_salud(temperatura_c: 'float | None', eventos: list) -> dict:
+    """
+    Puntuación de salud de CPU (0–100) con factores explicativos y consejo.
+
+    Devuelve un dict con:
+      · pct      (int)       puntuación 0–100
+      · factores (list[dict]) cada factor con 'tipo' ('ok'|'warn'|'danger') y 'texto'
+      · consejo  (str|None)  qué puede hacer el usuario para mejorar la salud
+    """
+    score    = 100   # Puntuación inicial perfecta; cada problema detectado resta puntos
+    factores = []    # Lista de factores mostrados al usuario con su nivel (ok/warn/danger)
+    consejos = []    # Acciones recomendadas; se deduplican antes de devolverlas
+
+    # ── Factor temperatura ───────────────────────────────────────────────────
+    if temperatura_c is not None:
+        if temperatura_c >= 90:
+            score -= 20   # Zona crítica: la electromigración se acelera exponencialmente >90°C
+            factores.append({"tipo": "danger",
+                "texto": f"Temperatura crítica: {temperatura_c} °C — riesgo de daño acumulativo en el chip"})
+            consejos.append("Revisa urgentemente la refrigeración: puede que la pasta térmica esté seca o el disipador esté obstruido por polvo.")
+        elif temperatura_c >= 85:
+            score -= 10   # Zona de riesgo: el margen hasta el thermal throttling es mínimo
+            factores.append({"tipo": "warn",
+                "texto": f"Temperatura elevada: {temperatura_c} °C — margen de seguridad muy reducido"})
+            consejos.append("Limpia los ventiladores y comprueba que el disipador hace buen contacto con el procesador.")
+        elif temperatura_c >= 70:
+            score -= 5    # Zona de aviso: aceptable bajo carga, preocupante en reposo
+            factores.append({"tipo": "warn",
+                "texto": f"Temperatura en zona de aviso: {temperatura_c} °C"})
+            consejos.append("Asegúrate de que el equipo tiene buena ventilación y los ventiladores no están obstruidos.")
+        else:
+            # Temperatura dentro del rango seguro para la mayoría de procesadores (<70°C)
+            factores.append({"tipo": "ok",
+                "texto": f"Temperatura en rango normal: {temperatura_c} °C"})
+    else:
+        # WMI MSAcpi_ThermalZoneTemperature no expone datos en todos los sistemas
+        factores.append({"tipo": "ok",
+            "texto": "Sensor de temperatura no disponible en este sistema"})
+
+    # ── Factor throttling térmico ────────────────────────────────────────────
+    # Cuenta los eventos de ID 37 (Kernel-Processor-Power) ya recopilados por _recopilar_eventos()
+    throttling = sum(1 for e in eventos if e.get('tipo') == 'throttling_termico')
+    if throttling > 0:
+        score -= min(throttling * 8, 30)  # 8 pts por evento; cap 30 para que un evento puntual no destruya el score
+        factores.append({"tipo": "warn",
+            "texto": f"{throttling} evento(s) de reducción de velocidad por calor en el historial del sistema"})
+        consejos.append("El procesador ha bajado su frecuencia para no sobrecalentarse. Considera cambiar la pasta térmica o mejorar el flujo de aire del chasis.")
+    else:
+        factores.append({"tipo": "ok",
+            "texto": "Sin eventos de reducción de velocidad por calor registrados"})
+
+    score = max(0, min(100, score))  # Clamp final al rango [0, 100] por si varias penalizaciones se acumulan
+
+    # Eliminar consejos duplicados preservando el orden de aparición
+    # (puede haber duplicados si temperatura y throttling generan el mismo consejo)
+    vistos, unicos = set(), []
+    for c in consejos:
+        if c not in vistos:
+            vistos.add(c)
+            unicos.append(c)
+    consejo = " ".join(unicos) if unicos else None  # Concatenar o None si no hay nada que mejorar
+
+    return {"pct": score, "factores": factores, "consejo": consejo}
+
+
+def _ram_salud() -> dict:
+    """
+    Puntuación de salud de RAM (0–100) con factores y consejo.
+    Usa el uso de swap como proxy de saturación o degradación de módulos.
+    """
+    score    = 100   # Puntuación de partida; el swap alto la degrada progresivamente
+    factores = []
+    consejo  = None
+
+    try:
+        swap = psutil.swap_memory()  # NamedTuple: total, used, free, percent, sin, sout
+        if swap.total == 0:
+            # Sin archivo de paginación → Windows gestiona solo con RAM física
+            factores.append({"tipo": "ok",
+                "texto": "Sin archivo de paginación configurado (sistema con RAM suficiente)"})
+        else:
+            pct = round(swap.percent, 1)  # % del archivo de paginación en uso
+            if pct >= 80:
+                score -= 30  # Uso crítico: el disco sustituye a la RAM, rendimiento muy degradado
+                factores.append({"tipo": "danger",
+                    "texto": f"Memoria de intercambio (swap) al {pct}% — el sistema está usando intensivamente el disco como RAM"})
+                consejo = ("El equipo se está quedando sin memoria RAM. "
+                           "Cierra aplicaciones que no uses, añade más RAM o aumenta el archivo de paginación. "
+                           "Si persiste, un módulo de RAM podría estar fallando — ejecuta el diagnóstico de memoria de Windows (mdsched.exe).")
+            elif pct >= 50:
+                score -= 15  # Uso moderado-alto: señal de que la RAM no da abasto
+                factores.append({"tipo": "warn",
+                    "texto": f"Memoria de intercambio al {pct}% — señal de presión sobre la RAM"})
+                consejo = ("La RAM está bajo presión. Cierra aplicaciones innecesarias en segundo plano "
+                           "o considera ampliar la memoria del equipo.")
+            elif pct >= 20:
+                score -= 5   # Uso bajo pero existente: penalización leve
+                factores.append({"tipo": "warn",
+                    "texto": f"Memoria de intercambio en uso moderado: {pct}%"})
+                consejo = "El uso de swap es bajo pero existente. Es normal en sistemas con poca RAM instalada."
+            else:
+                # <20%: swap apenas utilizado, RAM en buen estado
+                factores.append({"tipo": "ok",
+                    "texto": f"Memoria de intercambio prácticamente sin uso: {pct}%"})
+    except Exception:
+        # psutil puede fallar en algunos entornos virtualizados donde swap no está disponible
+        factores.append({"tipo": "ok",
+            "texto": "No se pudo leer el estado de la memoria de intercambio"})
+
+    return {"pct": max(0, min(100, score)), "factores": factores, "consejo": consejo}
+
+
+def _disco_salud_global() -> dict:
+    """
+    Salud global del almacenamiento: score, factores y consejo del disco en peor estado.
+    Usa Get-PhysicalDisk HealthStatus (1=Healthy, 3=Warning, 2=Unhealthy).
+    """
+    SCORE_MAP  = {1: 95, 2: 20, 3: 60}
+    ESTADO_MAP = {1: 'Healthy', 2: 'Unhealthy', 3: 'Warning'}
+
+    salida = _ps(
+        "Get-PhysicalDisk | Select-Object FriendlyName,HealthStatus,MediaType "
+        "| ConvertTo-Json -Compress"
+    )
+
+    factores = []
+    consejo  = None
+
+    if not salida:
+        factores.append({"tipo": "ok",
+            "texto": "Estado S.M.A.R.T. no disponible — PowerShell no devolvió datos de disco"})
+        return {"pct": 85, "txt": "Sin datos", "factores": factores, "consejo": consejo}
+
+    try:
+        discos = json.loads(salida)
+        if isinstance(discos, dict):
+            discos = [discos]
+
+        scores = []
+        for d in discos:
+            health_num = d.get('HealthStatus', 1)
+            media_num  = d.get('MediaType', 0)
+            nombre     = d.get('FriendlyName') or 'Disco desconocido'
+            tipo_txt   = {3: 'HDD', 4: 'SSD'}.get(media_num, '')
+            etiqueta   = f"{nombre} ({tipo_txt})" if tipo_txt else nombre
+            score_d    = SCORE_MAP.get(health_num, 75)
+            estado_txt = ESTADO_MAP.get(health_num, 'Desconocido')
+            scores.append(score_d)
+
+            if health_num == 1:
+                factores.append({"tipo": "ok",
+                    "texto": f"{etiqueta}: estado óptimo según S.M.A.R.T."})
+            elif health_num == 3:
+                factores.append({"tipo": "warn",
+                    "texto": f"{etiqueta}: {estado_txt} — sectores reasignados o atributos S.M.A.R.T. degradados"})
+                consejo = ("Haz una copia de seguridad de tus datos inmediatamente. "
+                           "Usa CrystalDiskInfo (gratuito) para ver los atributos S.M.A.R.T. en detalle "
+                           "y valora sustituir el disco si la situación empeora.")
+            else:
+                factores.append({"tipo": "danger",
+                    "texto": f"{etiqueta}: {estado_txt} — fallos detectados, riesgo de pérdida de datos"})
+                consejo = ("Este disco tiene fallos graves. Haz una copia de seguridad AHORA "
+                           "y reemplázalo lo antes posible. No esperes más.")
+
+        if not scores:
+            factores.append({"tipo": "ok", "texto": "Sin discos físicos detectados"})
+            return {"pct": 85, "txt": "Sin datos", "factores": factores, "consejo": None}
+
+        min_score = min(scores)
+        txt = 'Óptimo' if min_score >= 85 else 'Advertencia' if min_score >= 50 else 'Defectuoso'
+        return {"pct": min_score, "txt": txt, "factores": factores, "consejo": consejo}
+
+    except (json.JSONDecodeError, TypeError):
+        factores.append({"tipo": "ok", "texto": "No se pudo parsear la respuesta de Get-PhysicalDisk"})
+        return {"pct": 85, "txt": "Sin datos", "factores": factores, "consejo": None}
+
+
+def _bateria_salud_wmi() -> dict:
+    """
+    Vida útil de la batería comparando capacidad actual vs diseño (via WMI).
+    Devuelve dict con pct (int|None), factores y consejo.
+    pct=None indica que los datos WMI no están disponibles en este sistema.
+    """
+    full_str = _ps(
+        "(Get-WmiObject -Namespace 'root/WMI' -Class BatteryFullChargedCapacity "
+        "| Select-Object -First 1 -ExpandProperty FullChargedCapacity)"
+    )
+    design_str = _ps(
+        "(Get-WmiObject -Namespace 'root/WMI' -Class BatteryStaticData "
+        "| Select-Object -First 1 -ExpandProperty DesignedCapacity)"
+    )
+
+    if not full_str or not design_str:
+        return {
+            "pct": None,
+            "factores": [{"tipo": "ok",
+                "texto": "Datos de desgaste no disponibles vía WMI en este sistema"}],
+            "consejo": None,
+        }
+
+    try:
+        full   = int(full_str)
+        design = int(design_str)
+        if design <= 0 or full <= 0:
+            return {"pct": None, "factores": [], "consejo": None}
+
+        pct     = max(0, min(100, round((full / design) * 100)))
+        perdida = 100 - pct
+        factores = []
+        consejo  = None
+
+        factores.append({"tipo": "ok" if pct >= 80 else "warn" if pct >= 50 else "danger",
+            "texto": f"Capacidad actual: {pct}% respecto a la original de fábrica (has perdido un {perdida}%)"})
+
+        if pct >= 80:
+            factores.append({"tipo": "ok",
+                "texto": "Batería en buen estado — degradación normal para su uso"})
+        elif pct >= 50:
+            factores.append({"tipo": "warn",
+                "texto": "Degradación notable — la autonomía es significativamente menor que cuando era nueva"})
+            consejo = ("La batería ha perdido capacidad. Evita cargarla al 100% constantemente "
+                       "y no la dejes descargarse completamente. Mantenerla entre el 20% y el 80% "
+                       "alarga su vida útil. Considera revisarla con el fabricante.")
+        else:
+            factores.append({"tipo": "danger",
+                "texto": "Batería muy degradada — autonomía gravemente reducida"})
+            consejo = ("La batería ha perdido más de la mitad de su capacidad original. "
+                       "Se recomienda reemplazarla para recuperar la autonomía del equipo. "
+                       "Contacta con el servicio técnico del fabricante.")
+
+        return {"pct": pct, "factores": factores, "consejo": consejo}
+
+    except (ValueError, ZeroDivisionError):
+        return {"pct": None, "factores": [], "consejo": None}
+
+
 # ── Función principal ────────────────────────────────────────────────────────
 
 def run(muestreo: int = 3) -> dict:
@@ -352,24 +590,47 @@ def run(muestreo: int = 3) -> dict:
     elapsed_io = time.time() - t_io_antes  # Tiempo real transcurrido entre los dos snapshots
 
     # ── 4. Recopilar el resto de métricas (rápidas, sin bloqueo) ─────────────
-    ram      = _recopilar_ram()                                           # Memoria RAM
-    disco    = _recopilar_disco(io_antes, io_despues, elapsed_io)        # Disco + velocidades
-    bateria  = _recopilar_bateria()                                       # Batería (si existe)
-    eventos  = _recopilar_eventos()                                       # Event Log crítico
+    ram     = _recopilar_ram()
+    disco   = _recopilar_disco(io_antes, io_despues, elapsed_io)
+    bateria = _recopilar_bateria()
+    eventos = _recopilar_eventos()
 
-    duracion = round(time.time() - inicio, 2)  # Tiempo total del escaneo en segundos
+    # ── 5. Calcular scores de salud / vida útil ───────────────────────────────
+    cpu_salud   = _cpu_salud(cpu['temperatura_c'], eventos)
+    ram_salud   = _ram_salud()
+    disco_salud = _disco_salud_global()
+    bat_salud   = _bateria_salud_wmi() if bateria.get('presente') else {
+        "pct": None, "factores": [], "consejo": None
+    }
+
+    duracion = round(time.time() - inicio, 2)
 
     return {
-        "ok": True,              # Indicador de éxito para que JS sepa que hay datos válidos
+        "ok": True,
         "data": {
-            "cpu":     cpu,      # Modelo, núcleos, frecuencia, uso, temperatura
-            "ram":     ram,      # Total, disponible, uso, velocidad
-            "disco":   disco,    # Particiones, velocidad lectura/escritura
-            "bateria": bateria,  # Estado de batería (o {presente: false} en desktops)
-            "eventos": eventos,  # Lista de eventos críticos del Event Log (puede ser [])
+            "cpu":     cpu,
+            "ram":     ram,
+            "disco":   disco,
+            "bateria": bateria,
+            "eventos": eventos,
+            "salud": {
+                "cpu_pct":          cpu_salud["pct"],
+                "cpu_factores":     cpu_salud["factores"],
+                "cpu_consejo":      cpu_salud["consejo"],
+                "ram_pct":          ram_salud["pct"],
+                "ram_factores":     ram_salud["factores"],
+                "ram_consejo":      ram_salud["consejo"],
+                "disco_pct":        disco_salud["pct"],
+                "disco_txt":        disco_salud["txt"],
+                "disco_factores":   disco_salud["factores"],
+                "disco_consejo":    disco_salud["consejo"],
+                "bateria_pct":      bat_salud["pct"],
+                "bateria_factores": bat_salud["factores"],
+                "bateria_consejo":  bat_salud["consejo"],
+            },
         },
         "meta": {
-            "duracion_s": duracion,                               # Cuánto tardó el escaneo
-            "timestamp":  datetime.datetime.now().isoformat(),    # Fecha y hora del escaneo
+            "duracion_s": duracion,
+            "timestamp":  datetime.datetime.now().isoformat(),
         },
     }
