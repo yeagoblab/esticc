@@ -17,9 +17,15 @@ Write-Host "=== ESTICC Release Packager ===" -ForegroundColor Cyan
 $TauriConf   = Get-Content (Join-Path $Root "src-tauri\tauri.conf.json") | ConvertFrom-Json
 $Version     = $TauriConf.package.version
 $ActualizadorPath = Join-Path $Root "backend\modulo_07_actualizador\actualizador.py"
-$content     = Get-Content $ActualizadorPath -Raw
-$updated     = $content -replace 'VERSION_ACTUAL = "[^"]*"', "VERSION_ACTUAL = `"$Version`""
-Set-Content $ActualizadorPath $updated -NoNewline -Encoding utf8
+# Usar Python para el reemplazo: evita el mojibake que causaba PS5.1 al leer
+# UTF-8 sin BOM con Get-Content (usaba Windows-1252) y reescribir con BOM.
+& python -c @"
+import re, pathlib
+p = pathlib.Path(r'$ActualizadorPath')
+t = p.read_text(encoding='utf-8')
+t2 = re.sub(r'VERSION_ACTUAL = \"[^\"]*\"', 'VERSION_ACTUAL = \"$Version\"', t, count=1)
+p.write_text(t2, encoding='utf-8')
+"@
 Write-Host "[OK] VERSION_ACTUAL sincronizado a $Version en actualizador.py" -ForegroundColor Green
 
 # Verificar fuente
