@@ -24,7 +24,7 @@ import urllib.request
 from pathlib import Path
 
 
-VERSION_ACTUAL = "0.5.3"             # Actualizar junto con tauri.conf.json y Cargo.toml en cada release
+VERSION_ACTUAL = "0.6.1"             # Actualizar junto con tauri.conf.json y Cargo.toml en cada release
 REPO           = "yeagoblab/esticc"
 API_URL        = f"https://api.github.com/repos/{REPO}/releases/latest"
 USER_AGENT     = f"ESTICC/{VERSION_ACTUAL}"
@@ -145,14 +145,21 @@ def download_and_prepare(url_zip: str) -> dict:
     # - backend.exe se lanza con .spawn() sin Job Object, por lo que sobrevive al padre.
     # - $ok valida que ambas copias tuvieron Ã©xito antes de relanzar.
     # - Si la copia falla el temporal se conserva y ESTICC no se relanza.
-    ps_script = f"""
+    # - Espera activa a que backend.exe desaparezca (hasta 15 s) en lugar de sleep fijo;
+    #   sin esto Copy-Item sobre backend.exe falla si el proceso aun no libero el handle,
+    #   $ok queda False y Start-Process nunca se ejecuta (bug: app no relanzaba).
+    ps_script = f”””
 $waited = 0
 while ((Get-Process -Name 'ESTICC' -ErrorAction SilentlyContinue) -and $waited -lt 30) {{
     Start-Sleep -Seconds 1
     $waited++
 }}
 Stop-Process -Name 'backend' -Force -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 2
+$waited = 0
+while ((Get-Process -Name 'backend' -ErrorAction SilentlyContinue) -and $waited -lt 15) {{
+    Start-Sleep -Seconds 1
+    $waited++
+}}
 $ok = $false
 try {{
     Copy-Item -Path '{esticc_new}'  -Destination '{esticc_dst}'  -Force -ErrorAction Stop
@@ -163,7 +170,7 @@ if ($ok) {{
     Remove-Item -Path '{tmp_dir}' -Recurse -Force -ErrorAction SilentlyContinue
     Start-Process -FilePath '{esticc_dst}'
 }}
-""".strip()
+“””.strip()
 
     ps_path.write_text(ps_script, encoding="utf-8")
     return {"ps_path": str(ps_path)}
