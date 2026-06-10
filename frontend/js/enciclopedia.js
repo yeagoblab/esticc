@@ -1,21 +1,20 @@
 /**
  * enciclopedia.js — Enciclopedia de Malware Interactiva
  * Panel educativo con categorías, buscador en tiempo real y modal de detalle.
- * Modo avanzado: técnicas MITRE ATT&CK, IOCs e CVEs para analistas.
+ * Modo avanzado: técnicas MITRE ATT&CK, IOCs y CVEs para analistas.
+ *
+ * Internacionalización: los textos se cargan con getAmenazas() según window.ESTICC_LANG.
+ * Llamar a window.refreshEnciclopedia() tras cambiar el idioma para re-renderizar.
  */
 
-// ── Base de datos de amenazas ─────────────────────────────────────────────────
+// ── Base de datos (campos técnicos, no traducibles) ───────────────────────────
 
-const AMENAZAS = [
+const AMENAZAS_BASE = [
   {
     id: 'ransomware',
-    nombre: 'Ransomware',
-    categoria: 'Ransomware',
     icono: '🔒',
     peligro: 'critico',
-    descripcion_corta: 'Cifra tus archivos y exige un rescate económico para devolverte el acceso.',
-    descripcion: 'El ransomware es uno de los ataques más devastadores de la actualidad. Tras infectar el sistema, cifra documentos, imágenes, vídeos y bases de datos usando algoritmos de criptografía asimétrica (RSA-2048 + AES-256). El atacante posee la clave privada de descifrado y exige un pago —generalmente en criptomonedas como Bitcoin o Monero— a cambio de enviarla. No hay garantía de recuperación incluso pagando.',
-    vector: 'Correos con adjuntos maliciosos (macros de Office), sitios de descarga ilegítimos, vulnerabilidades de red sin parchear (SMB/EternalBlue), acceso RDP con contraseñas débiles.',
+    categoria: 'Ransomware',
     mitre: [
       { id: 'T1486',     nombre: 'Data Encrypted for Impact' },
       { id: 'T1490',     nombre: 'Inhibit System Recovery' },
@@ -30,32 +29,12 @@ const AMENAZAS = [
       'Red: conexiones Tor a .onion para C2 / pago',
     ],
     cves: ['CVE-2017-0144 (EternalBlue/WannaCry)', 'CVE-2019-19781 (Citrix/REvil)', 'CVE-2021-34527 (PrintNightmare/Conti)'],
-    sintomas: [
-      'Archivos con extensiones desconocidas (.locked, .encrypted, .enc)',
-      'Nota de rescate en el escritorio o en cada carpeta',
-      'Imposibilidad de abrir documentos, fotos o bases de datos',
-      'CPU al 100% durante la fase de cifrado',
-      'Iconos de archivo cambiados o en blanco',
-    ],
-    prevencion: [
-      'Realizar copias de seguridad offline y en la nube de forma regular',
-      'Mantener el sistema operativo y aplicaciones actualizados',
-      'No abrir adjuntos de correos no solicitados',
-      'Deshabilitar macros de Office en entornos corporativos',
-      'Usar autenticación de dos factores en accesos remotos',
-    ],
-    herramienta: 'No More Ransom (nomoreransom.org)',
-    ejemplos: ['WannaCry', 'LockBit', 'REvil / Sodinokibi', 'Conti', 'Ryuk', 'BlackCat'],
   },
   {
     id: 'rat',
-    nombre: 'Troyano de Acceso Remoto (RAT)',
-    categoria: 'Troyanos',
     icono: '🎭',
     peligro: 'critico',
-    descripcion_corta: 'Permite a un atacante controlar tu equipo de forma remota y completamente silenciosa.',
-    descripcion: 'Un RAT (Remote Access Trojan) se disfraza de software legítimo para engañar al usuario. Una vez ejecutado, establece una conexión persistente con el servidor del atacante usando protocolos cifrados (HTTPS/TLS sobre 443) para evadir firewalls. El atacante obtiene control total: pantalla en tiempo real, acceso a archivos, activación de cámara/micrófono, registro de teclado y ejecución de comandos arbitrarios.',
-    vector: 'Software pirata, adjuntos de correo disfrazados de documentos, descargas de foros y redes P2P, ingeniería social.',
+    categoria: 'Troyanos',
     mitre: [
       { id: 'T1059.003', nombre: 'Windows Command Shell' },
       { id: 'T1071.001', nombre: 'Web Protocols (C2 over HTTPS)' },
@@ -71,32 +50,12 @@ const AMENAZAS = [
       'Archivo: dropped en %APPDATA%\\Roaming\\ o %TEMP%\\',
     ],
     cves: ['CVE-2022-30190 (Follina/MSDT)', 'CVE-2021-40444 (MSHTML RCE)'],
-    sintomas: [
-      'Actividad de red inusual, especialmente en horas de inactividad',
-      'Procesos desconocidos ejecutándose en segundo plano',
-      'Luz de la cámara web encendiéndose sola',
-      'Rendimiento del equipo degradado sin causa aparente',
-      'Aplicaciones que se abren o cierran solas',
-    ],
-    prevencion: [
-      'Descargar software únicamente de sitios oficiales del fabricante',
-      'Mantener el antivirus y el firewall activos y actualizados',
-      'Cubrir la cámara web cuando no se usa',
-      'Verificar la firma digital de los instaladores',
-      'Revisar periódicamente los procesos activos',
-    ],
-    herramienta: 'Malwarebytes, Windows Defender Offline Scan',
-    ejemplos: ['Metasploit Meterpreter', 'DarkComet', 'NjRAT', 'AsyncRAT', 'QuasarRAT'],
   },
   {
     id: 'spyware',
-    nombre: 'Spyware',
-    categoria: 'Spyware',
     icono: '👁️',
     peligro: 'alto',
-    descripcion_corta: 'Recopila información personal y de navegación sin tu conocimiento y la envía a terceros.',
-    descripcion: 'El spyware se instala de forma sigilosa y monitoriza la actividad del usuario de manera continuada: historial de navegación, credenciales introducidas mediante hooking de APIs Win32 (SetWindowsHookEx), capturas de pantalla periódicas mediante GDI/BitBlt y hasta conversaciones de audio. Los datos se comprimen, cifran y exfiltran en intervalos regulares hacia servidores C2.',
-    vector: 'Software gratuito con bundleware, sitios web maliciosos con exploits de navegador, phishing, extensiones de navegador falsas.',
+    categoria: 'Spyware',
     mitre: [
       { id: 'T1056.001', nombre: 'Keylogging (API hooking)' },
       { id: 'T1113',     nombre: 'Screen Capture (GDI/BitBlt)' },
@@ -110,31 +69,12 @@ const AMENAZAS = [
       'Proceso: inyectado en explorer.exe o navegadores via DLL injection',
     ],
     cves: ['CVE-2021-30983 (iOS/Pegasus)', 'CVE-2022-22620 (Safari/WebKit)'],
-    sintomas: [
-      'Navegador notablemente más lento de lo habitual',
-      'Cambios en la página de inicio o motor de búsqueda sin haberlos configurado',
-      'Anuncios hiperpersonalizados sobre conversaciones recientes',
-      'Batería que se agota más rápido en portátiles',
-      'Uso elevado de datos de red en segundo plano',
-    ],
-    prevencion: [
-      'Leer detenidamente los pasos de instalación de software gratuito',
-      'Usar un bloqueador de anuncios y scripts (uBlock Origin)',
-      'Revisar y limpiar las extensiones del navegador periódicamente',
-      'Usar un gestor de contraseñas para detectar credenciales comprometidas',
-    ],
-    herramienta: 'Malwarebytes AdwCleaner, SUPERAntiSpyware',
-    ejemplos: ['CoolWebSearch', 'FinFisher', 'Pegasus (grado gubernamental)', 'Gator'],
   },
   {
     id: 'adware',
-    nombre: 'Adware',
-    categoria: 'Adware',
     icono: '📢',
     peligro: 'medio',
-    descripcion_corta: 'Muestra publicidad invasiva y puede redirigir el navegador a sitios maliciosos.',
-    descripcion: 'El adware modifica el navegador instalando extensiones no autorizadas, cambiando el motor de búsqueda predeterminado a través de políticas de grupo (GPO) o modificando el archivo hosts. Inyecta JavaScript en cada página visitada para insertar anuncios. Aunque su objetivo principal es generar ingresos publicitarios (pay-per-click), puede actuar como dropper de malware más peligroso.',
-    vector: 'Instaladores de software gratuito con casillas preseleccionadas, extensiones de navegador falsas, sitios de descarga de terceros.',
+    categoria: 'Adware',
     mitre: [
       { id: 'T1176',     nombre: 'Browser Extensions' },
       { id: 'T1112',     nombre: 'Modify Registry (motor búsqueda)' },
@@ -147,31 +87,12 @@ const AMENAZAS = [
       'Proceso: BHO (Browser Helper Object) cargado en iexplore.exe',
     ],
     cves: [],
-    sintomas: [
-      'Anuncios emergentes en páginas que no los muestran normalmente',
-      'Motor de búsqueda o página de inicio cambiados sin permiso',
-      'Extensiones o barras de herramientas desconocidas en el navegador',
-      'Redirecciones a sitios publicitarios al hacer clic en enlaces',
-      'Lentitud general del navegador',
-    ],
-    prevencion: [
-      'Elegir siempre "Instalación personalizada" para deseleccionar extras',
-      'Descargar software únicamente desde el sitio oficial del desarrollador',
-      'Usar Unchecky para deseleccionar automáticamente el bundleware',
-      'Revisar las extensiones instaladas en el navegador mensualmente',
-    ],
-    herramienta: 'Malwarebytes AdwCleaner (gratuito)',
-    ejemplos: ['Superfish', 'Conduit', 'Babylon Toolbar', 'Ask Toolbar', 'OpenCandy'],
   },
   {
     id: 'rootkit',
-    nombre: 'Rootkit',
-    categoria: 'Rootkits',
     icono: '🕳️',
     peligro: 'critico',
-    descripcion_corta: 'Se oculta en las capas más profundas del sistema operativo para ser completamente indetectable.',
-    descripcion: 'Un rootkit opera en los niveles más privilegiados del sistema (Ring 0 / kernel). Utiliza técnicas como DKOM (Direct Kernel Object Manipulation) para desvincular su proceso de la lista de procesos activos, hooking de SSDT (System Service Descriptor Table) para interceptar llamadas al sistema y filtrar resultados, o bootkits que infectan el MBR/VBR para ejecutarse antes que el sistema operativo. Un rootkit de firmware sobrevive a reinstalaciones.',
-    vector: 'Exploits de escalada de privilegios (privilege escalation), instaladores comprometidos (supply chain), acceso físico al equipo.',
+    categoria: 'Rootkits',
     mitre: [
       { id: 'T1014',     nombre: 'Rootkit (DKOM / SSDT hooking)' },
       { id: 'T1542.003', nombre: 'Bootkit (MBR/VBR infection)' },
@@ -186,32 +107,12 @@ const AMENAZAS = [
       'Driver sin firma cargado en System32\\drivers\\',
     ],
     cves: ['CVE-2021-21551 (Dell DBUtil — EoP a kernel)', 'CVE-2022-21882 (Win32k EoP)'],
-    sintomas: [
-      'Herramientas de seguridad que de repente dejan de funcionar',
-      'Discrepancias entre lo que muestran distintas herramientas del sistema',
-      'Comportamiento errático e impredecible del sistema operativo',
-      'Tiempo de arranque significativamente más lento',
-      'Archivos que aparecen y desaparecen inexplicablemente',
-    ],
-    prevencion: [
-      'Activar Secure Boot en la BIOS/UEFI',
-      'Mantener el firmware y los drivers actualizados',
-      'No instalar software de fuentes no verificadas',
-      'Usar el arranque seguro de Windows (Trusted Boot)',
-      'Considerar la reinstalación completa ante sospecha seria',
-    ],
-    herramienta: 'Kaspersky TDSSKiller, GMER, Microsoft Rootkit Revealer',
-    ejemplos: ['Sony BMG rootkit', 'ZeroAccess', 'Necurs', 'Flame', 'Azazel', 'Avatar'],
   },
   {
     id: 'gusano',
-    nombre: 'Gusano de Red',
-    categoria: 'Gusanos',
     icono: '🐛',
     peligro: 'alto',
-    descripcion_corta: 'Se propaga automáticamente por la red infectando otros equipos sin intervención del usuario.',
-    descripcion: 'Los gusanos explotan vulnerabilidades de red (buffer overflows, use-after-free en protocolos de red) para inyectar shellcode en procesos remotos sin autenticación. Tras comprometer el objetivo, ejecutan su payload (descarga de malware, backdoor, ransomware) y repiten el ciclo de escáneo y explotación de forma exponencial. La propagación puede saturar redes enteras en minutos.',
-    vector: 'Vulnerabilidades de red sin parchear (SMB, RDP), dispositivos USB, servicios con contraseñas débiles, redes compartidas.',
+    categoria: 'Gusanos',
     mitre: [
       { id: 'T1210',     nombre: 'Exploitation of Remote Services' },
       { id: 'T1570',     nombre: 'Lateral Tool Transfer' },
@@ -226,32 +127,12 @@ const AMENAZAS = [
       'Red: payload DOUBLEPULSAR en SMB Named Pipe \\PIPE\\browser',
     ],
     cves: ['CVE-2017-0144 (EternalBlue/WannaCry)', 'CVE-2019-0708 (BlueKeep/RDP)', 'CVE-2008-4250 (Conficker/MS08-067)'],
-    sintomas: [
-      'Red local notablemente lenta sin motivo aparente',
-      'Alto uso de CPU y ancho de banda de red en reposo',
-      'Conexiones salientes masivas a múltiples IPs',
-      'Otros equipos de la red reportando problemas simultáneamente',
-      'Logs del firewall con miles de intentos de conexión',
-    ],
-    prevencion: [
-      'Mantener el sistema actualizado con los últimos parches de seguridad',
-      'Segmentar la red (VLANs) para limitar la propagación',
-      'Deshabilitar servicios de red no necesarios (SMBv1, Telnet)',
-      'Usar contraseñas fuertes y únicas para servicios de red',
-      'Monitorizar el tráfico de red en busca de anomalías',
-    ],
-    herramienta: 'Microsoft Safety Scanner, Windows Malicious Software Removal Tool',
-    ejemplos: ['WannaCry', 'Conficker', 'Blaster', 'Sasser', 'Slammer', 'Code Red'],
   },
   {
     id: 'keylogger',
-    nombre: 'Keylogger',
-    categoria: 'Keyloggers',
     icono: '⌨️',
     peligro: 'alto',
-    descripcion_corta: 'Registra cada tecla pulsada capturando contraseñas, mensajes privados y datos bancarios.',
-    descripcion: 'Los keyloggers de software usan la API SetWindowsHookEx(WH_KEYBOARD_LL) para registrar pulsaciones globalmente, o GetAsyncKeyState() en polling para capturar estado de teclas. Las variantes más avanzadas inyectan una DLL en el proceso del navegador para capturar directamente el contenido de campos de formulario antes del cifrado TLS (form grabbing). Los keyloggers hardware son dispositivos físicos invisibles para cualquier software de detección.',
-    vector: 'Software malicioso descargado, phishing, acceso físico al equipo (keyloggers hardware), troyanos con componente keylogger integrado.',
+    categoria: 'Keyloggers',
     mitre: [
       { id: 'T1056.001', nombre: 'Keylogging (SetWindowsHookEx)' },
       { id: 'T1056.003', nombre: 'Web Portal Capture (form grabbing)' },
@@ -265,30 +146,12 @@ const AMENAZAS = [
       'Hardware: dispositivo USB/PS2 desconocido entre teclado y equipo',
     ],
     cves: ['CVE-2022-1096 (Chrome V8 — form grabbing)', 'CVE-2021-30551 (Chrome Type Confusion)'],
-    sintomas: [
-      'Generalmente completamente imperceptible para el usuario',
-      'Actividad de red sospechosa — envíos periódicos de datos pequeños',
-      'Cuentas comprometidas a pesar de no reutilizar contraseñas',
-      'En keyloggers hardware: dispositivo desconocido en el puerto USB del teclado',
-    ],
-    prevencion: [
-      'Activar la autenticación de dos factores en todas las cuentas',
-      'Usar el teclado virtual del sistema para datos bancarios en equipos desconocidos',
-      'Revisar físicamente los puertos USB antes de usar un equipo público',
-      'Usar un gestor de contraseñas con autorrelleno (resiste keyloggers de teclado)',
-    ],
-    herramienta: 'Malwarebytes, SpyBot Search & Destroy',
-    ejemplos: ['HawkEye', 'Snake Keylogger', 'Agent Tesla', 'Olympic Vision', 'Ardamax'],
   },
   {
     id: 'cryptojacker',
-    nombre: 'Cryptojacker',
-    categoria: 'Cryptojackers',
     icono: '⛏️',
     peligro: 'medio',
-    descripcion_corta: 'Secuestra la potencia de tu procesador para minar criptomonedas sin tu permiso.',
-    descripcion: 'El cryptojacking implementa algoritmos Proof-of-Work (PoW) —especialmente CryptoNight para Monero por su resistencia a ASICs— usando las instrucciones AES-NI del procesador para maximizar el hashrate. En navegadores usa WebAssembly (WASM) para ejecutar código nativo a velocidades cercanas a las nativas. Los operadores usan pools de minería (stratum+tcp://) para agregar el hashrate de miles de víctimas y repartir recompensas.',
-    vector: 'Scripts JavaScript en páginas web comprometidas, extensiones de navegador, malware descargado, contenedores Docker comprometidos.',
+    categoria: 'Cryptojackers',
     mitre: [
       { id: 'T1496',     nombre: 'Resource Hijacking (CPU/GPU)' },
       { id: 'T1059.007', nombre: 'JavaScript (WebAssembly miner)' },
@@ -302,31 +165,12 @@ const AMENAZAS = [
       'Dominio: coinhive.com (histórico) · miner.pr0gramm.com y similares',
     ],
     cves: ['CVE-2018-4878 (Flash — cryptojacking)', 'CVE-2021-3156 (sudo — escalada para instalar miner)'],
-    sintomas: [
-      'CPU o GPU al 80-100% durante la navegación web o en reposo',
-      'Equipo extremadamente lento o con lag',
-      'Ventiladores funcionando al máximo continuamente',
-      'Batería que se agota en minutos en portátiles',
-      'Facturas eléctricas anormalmente elevadas en servidores',
-    ],
-    prevencion: [
-      'Instalar una extensión anti-cryptomining (NoCoin, MinerBlock)',
-      'Usar uBlock Origin con listas de filtros actualizadas',
-      'Mantener el antivirus actualizado',
-      'Revisar el uso de CPU antes y después de abrir páginas web',
-    ],
-    herramienta: 'Malwarebytes, extensión minerBlock para navegadores',
-    ejemplos: ['Coinhive (inactivo)', 'XMRig', 'PowerGhost', 'WannaMine', 'BadShell'],
   },
   {
     id: 'botnet',
-    nombre: 'Botnet',
-    categoria: 'Botnets',
     icono: '🤖',
     peligro: 'alto',
-    descripcion_corta: 'Convierte tu equipo en un "zombie" controlado remotamente para atacar a otros o enviar spam.',
-    descripcion: 'Una botnet es una red de equipos infectados controlados mediante un servidor C2 (Command & Control). Las botnets modernas usan arquitecturas P2P o domain generation algorithms (DGA) para que el C2 sea resistente a takedowns. El botmaster puede enviar comandos firmados digitalmente a todos los bots simultáneamente: DDoS (UDP/SYN flood, HTTP flood), spam, credential stuffing, click fraud o distribución de payloads adicionales.',
-    vector: 'Malware descargado, exploits de red, credenciales débiles en RDP/SSH, dispositivos IoT con contraseñas por defecto.',
+    categoria: 'Botnets',
     mitre: [
       { id: 'T1071.001', nombre: 'Web Protocols (HTTP/S C2)' },
       { id: 'T1008',     nombre: 'Fallback Channels (DGA / P2P)' },
@@ -341,31 +185,12 @@ const AMENAZAS = [
       'Tráfico: UDP flood saliente o HTTP POST masivo en puertos altos',
     ],
     cves: ['CVE-2016-10372 (Mirai/IoT)', 'CVE-2014-6271 (Shellshock/Bash — botnet Linux)'],
-    sintomas: [
-      'Actividad de red intensa en horas de inactividad',
-      'Equipo lento sin procesos aparentemente responsables',
-      'Dirección IP incluida en listas negras antispam',
-      'Proveedor de internet notifica abuso desde la IP',
-      'Router con conexiones salientes masivas a IPs desconocidas',
-    ],
-    prevencion: [
-      'Contraseñas fuertes y únicas, especialmente en router y servicios remotos',
-      'Cambiar las credenciales por defecto de todos los dispositivos IoT',
-      'Mantener el firmware del router actualizado',
-      'Monitorizar el tráfico de red saliente con el firewall',
-    ],
-    herramienta: 'Microsoft Safety Scanner, ESET Online Scanner',
-    ejemplos: ['Mirai (IoT)', 'Emotet', 'ZeuS / Zbot', 'Necurs', 'Cutwail', 'Kelihos'],
   },
   {
     id: 'phishing',
-    nombre: 'Phishing',
-    categoria: 'Vectores',
     icono: '🎣',
     peligro: 'alto',
-    descripcion_corta: 'Engaña al usuario para que entregue voluntariamente credenciales o datos personales.',
-    descripcion: 'El phishing moderno usa técnicas de evasión avanzadas: kits de phishing con proxy inverso (Evilginx2, Modlishka) que interceptan credenciales Y tokens 2FA en tiempo real, typosquatting de dominios registrados con Let\'s Encrypt (HTTPS válido), y homograph attacks usando caracteres Unicode visualmente idénticos (аpple.com con а cirílico). El spear phishing usa OSINT para personalizar el engaño con datos reales de la víctima.',
-    vector: 'Correo electrónico masivo o dirigido (spear phishing), SMS (smishing), llamadas (vishing), redes sociales y apps de mensajería.',
+    categoria: 'Vectores',
     mitre: [
       { id: 'T1566.001', nombre: 'Spearphishing Attachment' },
       { id: 'T1566.002', nombre: 'Spearphishing Link' },
@@ -380,53 +205,514 @@ const AMENAZAS = [
       'Kit: directorios /wp-content/phish/ o /verify/ con index.php de captura',
     ],
     cves: ['CVE-2021-40444 (MSHTML — doc malicioso por phishing)', 'CVE-2022-30190 (Follina — link phishing)'],
-    sintomas: [
-      'URL con variaciones sutiles del original (paypa1.com, micros0ft.com)',
-      'Certificado SSL inválido o de dominio diferente al mostrado',
-      'Lenguaje de urgencia extrema: "Tu cuenta será bloqueada en 24h"',
-      'Errores gramaticales o de traducción en el mensaje',
-      'Remitente de correo con dominio sospechoso',
-    ],
-    prevencion: [
-      'Verificar siempre la URL completa antes de introducir cualquier dato',
-      'Activar la autenticación de dos factores resistente a phishing (FIDO2/passkey)',
-      'Usar un gestor de contraseñas (no autocompleta en sitios falsos)',
-      'No hacer clic en enlaces de correos no solicitados; ir directamente al sitio',
-      'Habilitar la protección anti-phishing del navegador',
-    ],
-    herramienta: 'Google Safe Browsing, extensión Netcraft Anti-Phishing',
-    ejemplos: ['Microsoft 365 Credential Harvesting', 'Emotet (distribución)', 'PayPal phishing', 'Business Email Compromise (BEC)'],
   },
 ];
 
+// ── Contenido traducible por idioma ───────────────────────────────────────────
+
+const AMENAZAS_I18N = {
+
+  /* ── ESPAÑOL ─────────────────────────────────────────────────────── */
+  es: {
+    ransomware: {
+      nombre: 'Ransomware',
+      descripcion_corta: 'Cifra tus archivos y exige un rescate económico para devolverte el acceso.',
+      descripcion: 'El ransomware es uno de los ataques más devastadores de la actualidad. Tras infectar el sistema, cifra documentos, imágenes, vídeos y bases de datos usando algoritmos de criptografía asimétrica (RSA-2048 + AES-256). El atacante posee la clave privada de descifrado y exige un pago —generalmente en criptomonedas como Bitcoin o Monero— a cambio de enviarla. No hay garantía de recuperación incluso pagando.',
+      vector: 'Correos con adjuntos maliciosos (macros de Office), sitios de descarga ilegítimos, vulnerabilidades de red sin parchear (SMB/EternalBlue), acceso RDP con contraseñas débiles.',
+      sintomas: [
+        'Archivos con extensiones desconocidas (.locked, .encrypted, .enc)',
+        'Nota de rescate en el escritorio o en cada carpeta',
+        'Imposibilidad de abrir documentos, fotos o bases de datos',
+        'CPU al 100% durante la fase de cifrado',
+        'Iconos de archivo cambiados o en blanco',
+      ],
+      prevencion: [
+        'Realizar copias de seguridad offline y en la nube de forma regular',
+        'Mantener el sistema operativo y aplicaciones actualizados',
+        'No abrir adjuntos de correos no solicitados',
+        'Deshabilitar macros de Office en entornos corporativos',
+        'Usar autenticación de dos factores en accesos remotos',
+      ],
+      herramienta: 'No More Ransom (nomoreransom.org)',
+      ejemplos: ['WannaCry', 'LockBit', 'REvil / Sodinokibi', 'Conti', 'Ryuk', 'BlackCat'],
+    },
+    rat: {
+      nombre: 'Troyano de Acceso Remoto (RAT)',
+      descripcion_corta: 'Permite a un atacante controlar tu equipo de forma remota y completamente silenciosa.',
+      descripcion: 'Un RAT (Remote Access Trojan) se disfraza de software legítimo para engañar al usuario. Una vez ejecutado, establece una conexión persistente con el servidor del atacante usando protocolos cifrados (HTTPS/TLS sobre 443) para evadir firewalls. El atacante obtiene control total: pantalla en tiempo real, acceso a archivos, activación de cámara/micrófono, registro de teclado y ejecución de comandos arbitrarios.',
+      vector: 'Software pirata, adjuntos de correo disfrazados de documentos, descargas de foros y redes P2P, ingeniería social.',
+      sintomas: [
+        'Actividad de red inusual, especialmente en horas de inactividad',
+        'Procesos desconocidos ejecutándose en segundo plano',
+        'Luz de la cámara web encendiéndose sola',
+        'Rendimiento del equipo degradado sin causa aparente',
+        'Aplicaciones que se abren o cierran solas',
+      ],
+      prevencion: [
+        'Descargar software únicamente de sitios oficiales del fabricante',
+        'Mantener el antivirus y el firewall activos y actualizados',
+        'Cubrir la cámara web cuando no se usa',
+        'Verificar la firma digital de los instaladores',
+        'Revisar periódicamente los procesos activos',
+      ],
+      herramienta: 'Malwarebytes, Windows Defender Offline Scan',
+      ejemplos: ['Metasploit Meterpreter', 'DarkComet', 'NjRAT', 'AsyncRAT', 'QuasarRAT'],
+    },
+    spyware: {
+      nombre: 'Spyware',
+      descripcion_corta: 'Recopila información personal y de navegación sin tu conocimiento y la envía a terceros.',
+      descripcion: 'El spyware se instala de forma sigilosa y monitoriza la actividad del usuario de manera continuada: historial de navegación, credenciales introducidas mediante hooking de APIs Win32 (SetWindowsHookEx), capturas de pantalla periódicas mediante GDI/BitBlt y hasta conversaciones de audio. Los datos se comprimen, cifran y exfiltran en intervalos regulares hacia servidores C2.',
+      vector: 'Software gratuito con bundleware, sitios web maliciosos con exploits de navegador, phishing, extensiones de navegador falsas.',
+      sintomas: [
+        'Navegador notablemente más lento de lo habitual',
+        'Cambios en la página de inicio o motor de búsqueda sin haberlos configurado',
+        'Anuncios hiperpersonalizados sobre conversaciones recientes',
+        'Batería que se agota más rápido en portátiles',
+        'Uso elevado de datos de red en segundo plano',
+      ],
+      prevencion: [
+        'Leer detenidamente los pasos de instalación de software gratuito',
+        'Usar un bloqueador de anuncios y scripts (uBlock Origin)',
+        'Revisar y limpiar las extensiones del navegador periódicamente',
+        'Usar un gestor de contraseñas para detectar credenciales comprometidas',
+      ],
+      herramienta: 'Malwarebytes AdwCleaner, SUPERAntiSpyware',
+      ejemplos: ['CoolWebSearch', 'FinFisher', 'Pegasus (grado gubernamental)', 'Gator'],
+    },
+    adware: {
+      nombre: 'Adware',
+      descripcion_corta: 'Muestra publicidad invasiva y puede redirigir el navegador a sitios maliciosos.',
+      descripcion: 'El adware modifica el navegador instalando extensiones no autorizadas, cambiando el motor de búsqueda predeterminado a través de políticas de grupo (GPO) o modificando el archivo hosts. Inyecta JavaScript en cada página visitada para insertar anuncios. Aunque su objetivo principal es generar ingresos publicitarios (pay-per-click), puede actuar como dropper de malware más peligroso.',
+      vector: 'Instaladores de software gratuito con casillas preseleccionadas, extensiones de navegador falsas, sitios de descarga de terceros.',
+      sintomas: [
+        'Anuncios emergentes en páginas que no los muestran normalmente',
+        'Motor de búsqueda o página de inicio cambiados sin permiso',
+        'Extensiones o barras de herramientas desconocidas en el navegador',
+        'Redirecciones a sitios publicitarios al hacer clic en enlaces',
+        'Lentitud general del navegador',
+      ],
+      prevencion: [
+        'Elegir siempre "Instalación personalizada" para deseleccionar extras',
+        'Descargar software únicamente desde el sitio oficial del desarrollador',
+        'Usar Unchecky para deseleccionar automáticamente el bundleware',
+        'Revisar las extensiones instaladas en el navegador mensualmente',
+      ],
+      herramienta: 'Malwarebytes AdwCleaner (gratuito)',
+      ejemplos: ['Superfish', 'Conduit', 'Babylon Toolbar', 'Ask Toolbar', 'OpenCandy'],
+    },
+    rootkit: {
+      nombre: 'Rootkit',
+      descripcion_corta: 'Se oculta en las capas más profundas del sistema operativo para ser completamente indetectable.',
+      descripcion: 'Un rootkit opera en los niveles más privilegiados del sistema (Ring 0 / kernel). Utiliza técnicas como DKOM (Direct Kernel Object Manipulation) para desvincular su proceso de la lista de procesos activos, hooking de SSDT (System Service Descriptor Table) para interceptar llamadas al sistema y filtrar resultados, o bootkits que infectan el MBR/VBR para ejecutarse antes que el sistema operativo. Un rootkit de firmware sobrevive a reinstalaciones.',
+      vector: 'Exploits de escalada de privilegios (privilege escalation), instaladores comprometidos (supply chain), acceso físico al equipo.',
+      sintomas: [
+        'Herramientas de seguridad que de repente dejan de funcionar',
+        'Discrepancias entre lo que muestran distintas herramientas del sistema',
+        'Comportamiento errático e impredecible del sistema operativo',
+        'Tiempo de arranque significativamente más lento',
+        'Archivos que aparecen y desaparecen inexplicablemente',
+      ],
+      prevencion: [
+        'Activar Secure Boot en la BIOS/UEFI',
+        'Mantener el firmware y los drivers actualizados',
+        'No instalar software de fuentes no verificadas',
+        'Usar el arranque seguro de Windows (Trusted Boot)',
+        'Considerar la reinstalación completa ante sospecha seria',
+      ],
+      herramienta: 'Kaspersky TDSSKiller, GMER, Microsoft Rootkit Revealer',
+      ejemplos: ['Sony BMG rootkit', 'ZeroAccess', 'Necurs', 'Flame', 'Azazel', 'Avatar'],
+    },
+    gusano: {
+      nombre: 'Gusano de Red',
+      descripcion_corta: 'Se propaga automáticamente por la red infectando otros equipos sin intervención del usuario.',
+      descripcion: 'Los gusanos explotan vulnerabilidades de red (buffer overflows, use-after-free en protocolos de red) para inyectar shellcode en procesos remotos sin autenticación. Tras comprometer el objetivo, ejecutan su payload (descarga de malware, backdoor, ransomware) y repiten el ciclo de escáneo y explotación de forma exponencial. La propagación puede saturar redes enteras en minutos.',
+      vector: 'Vulnerabilidades de red sin parchear (SMB, RDP), dispositivos USB, servicios con contraseñas débiles, redes compartidas.',
+      sintomas: [
+        'Red local notablemente lenta sin motivo aparente',
+        'Alto uso de CPU y ancho de banda de red en reposo',
+        'Conexiones salientes masivas a múltiples IPs',
+        'Otros equipos de la red reportando problemas simultáneamente',
+        'Logs del firewall con miles de intentos de conexión',
+      ],
+      prevencion: [
+        'Mantener el sistema actualizado con los últimos parches de seguridad',
+        'Segmentar la red (VLANs) para limitar la propagación',
+        'Deshabilitar servicios de red no necesarios (SMBv1, Telnet)',
+        'Usar contraseñas fuertes y únicas para servicios de red',
+        'Monitorizar el tráfico de red en busca de anomalías',
+      ],
+      herramienta: 'Microsoft Safety Scanner, Windows Malicious Software Removal Tool',
+      ejemplos: ['WannaCry', 'Conficker', 'Blaster', 'Sasser', 'Slammer', 'Code Red'],
+    },
+    keylogger: {
+      nombre: 'Keylogger',
+      descripcion_corta: 'Registra cada tecla pulsada capturando contraseñas, mensajes privados y datos bancarios.',
+      descripcion: 'Los keyloggers de software usan la API SetWindowsHookEx(WH_KEYBOARD_LL) para registrar pulsaciones globalmente, o GetAsyncKeyState() en polling para capturar estado de teclas. Las variantes más avanzadas inyectan una DLL en el proceso del navegador para capturar directamente el contenido de campos de formulario antes del cifrado TLS (form grabbing). Los keyloggers hardware son dispositivos físicos invisibles para cualquier software de detección.',
+      vector: 'Software malicioso descargado, phishing, acceso físico al equipo (keyloggers hardware), troyanos con componente keylogger integrado.',
+      sintomas: [
+        'Generalmente completamente imperceptible para el usuario',
+        'Actividad de red sospechosa — envíos periódicos de datos pequeños',
+        'Cuentas comprometidas a pesar de no reutilizar contraseñas',
+        'En keyloggers hardware: dispositivo desconocido en el puerto USB del teclado',
+      ],
+      prevencion: [
+        'Activar la autenticación de dos factores en todas las cuentas',
+        'Usar el teclado virtual del sistema para datos bancarios en equipos desconocidos',
+        'Revisar físicamente los puertos USB antes de usar un equipo público',
+        'Usar un gestor de contraseñas con autorrelleno (resiste keyloggers de teclado)',
+      ],
+      herramienta: 'Malwarebytes, SpyBot Search & Destroy',
+      ejemplos: ['HawkEye', 'Snake Keylogger', 'Agent Tesla', 'Olympic Vision', 'Ardamax'],
+    },
+    cryptojacker: {
+      nombre: 'Cryptojacker',
+      descripcion_corta: 'Secuestra la potencia de tu procesador para minar criptomonedas sin tu permiso.',
+      descripcion: 'El cryptojacking implementa algoritmos Proof-of-Work (PoW) —especialmente CryptoNight para Monero por su resistencia a ASICs— usando las instrucciones AES-NI del procesador para maximizar el hashrate. En navegadores usa WebAssembly (WASM) para ejecutar código nativo a velocidades cercanas a las nativas. Los operadores usan pools de minería (stratum+tcp://) para agregar el hashrate de miles de víctimas y repartir recompensas.',
+      vector: 'Scripts JavaScript en páginas web comprometidas, extensiones de navegador, malware descargado, contenedores Docker comprometidos.',
+      sintomas: [
+        'CPU o GPU al 80-100% durante la navegación web o en reposo',
+        'Equipo extremadamente lento o con lag',
+        'Ventiladores funcionando al máximo continuamente',
+        'Batería que se agota en minutos en portátiles',
+        'Facturas eléctricas anormalmente elevadas en servidores',
+      ],
+      prevencion: [
+        'Instalar una extensión anti-cryptomining (NoCoin, MinerBlock)',
+        'Usar uBlock Origin con listas de filtros actualizadas',
+        'Mantener el antivirus actualizado',
+        'Revisar el uso de CPU antes y después de abrir páginas web',
+      ],
+      herramienta: 'Malwarebytes, extensión minerBlock para navegadores',
+      ejemplos: ['Coinhive (inactivo)', 'XMRig', 'PowerGhost', 'WannaMine', 'BadShell'],
+    },
+    botnet: {
+      nombre: 'Botnet',
+      descripcion_corta: 'Convierte tu equipo en un "zombie" controlado remotamente para atacar a otros o enviar spam.',
+      descripcion: 'Una botnet es una red de equipos infectados controlados mediante un servidor C2 (Command & Control). Las botnets modernas usan arquitecturas P2P o domain generation algorithms (DGA) para que el C2 sea resistente a takedowns. El botmaster puede enviar comandos firmados digitalmente a todos los bots simultáneamente: DDoS (UDP/SYN flood, HTTP flood), spam, credential stuffing, click fraud o distribución de payloads adicionales.',
+      vector: 'Malware descargado, exploits de red, credenciales débiles en RDP/SSH, dispositivos IoT con contraseñas por defecto.',
+      sintomas: [
+        'Actividad de red intensa en horas de inactividad',
+        'Equipo lento sin procesos aparentemente responsables',
+        'Dirección IP incluida en listas negras antispam',
+        'Proveedor de internet notifica abuso desde la IP',
+        'Router con conexiones salientes masivas a IPs desconocidas',
+      ],
+      prevencion: [
+        'Contraseñas fuertes y únicas, especialmente en router y servicios remotos',
+        'Cambiar las credenciales por defecto de todos los dispositivos IoT',
+        'Mantener el firmware del router actualizado',
+        'Monitorizar el tráfico de red saliente con el firewall',
+      ],
+      herramienta: 'Microsoft Safety Scanner, ESET Online Scanner',
+      ejemplos: ['Mirai (IoT)', 'Emotet', 'ZeuS / Zbot', 'Necurs', 'Cutwail', 'Kelihos'],
+    },
+    phishing: {
+      nombre: 'Phishing',
+      descripcion_corta: 'Engaña al usuario para que entregue voluntariamente credenciales o datos personales.',
+      descripcion: 'El phishing moderno usa técnicas de evasión avanzadas: kits de phishing con proxy inverso (Evilginx2, Modlishka) que interceptan credenciales Y tokens 2FA en tiempo real, typosquatting de dominios registrados con Let\'s Encrypt (HTTPS válido), y homograph attacks usando caracteres Unicode visualmente idénticos (аpple.com con а cirílico). El spear phishing usa OSINT para personalizar el engaño con datos reales de la víctima.',
+      vector: 'Correo electrónico masivo o dirigido (spear phishing), SMS (smishing), llamadas (vishing), redes sociales y apps de mensajería.',
+      sintomas: [
+        'URL con variaciones sutiles del original (paypa1.com, micros0ft.com)',
+        'Certificado SSL inválido o de dominio diferente al mostrado',
+        'Lenguaje de urgencia extrema: "Tu cuenta será bloqueada en 24h"',
+        'Errores gramaticales o de traducción en el mensaje',
+        'Remitente de correo con dominio sospechoso',
+      ],
+      prevencion: [
+        'Verificar siempre la URL completa antes de introducir cualquier dato',
+        'Activar la autenticación de dos factores resistente a phishing (FIDO2/passkey)',
+        'Usar un gestor de contraseñas (no autocompleta en sitios falsos)',
+        'No hacer clic en enlaces de correos no solicitados; ir directamente al sitio',
+        'Habilitar la protección anti-phishing del navegador',
+      ],
+      herramienta: 'Google Safe Browsing, extensión Netcraft Anti-Phishing',
+      ejemplos: ['Microsoft 365 Credential Harvesting', 'Emotet (distribución)', 'PayPal phishing', 'Business Email Compromise (BEC)'],
+    },
+  },
+
+  /* ── ENGLISH ─────────────────────────────────────────────────────── */
+  en: {
+    ransomware: {
+      nombre: 'Ransomware',
+      descripcion_corta: 'Encrypts your files and demands a ransom payment to restore your access.',
+      descripcion: 'Ransomware is one of the most devastating attacks today. After infecting the system, it encrypts documents, images, videos and databases using asymmetric cryptographic algorithms (RSA-2048 + AES-256). The attacker holds the private decryption key and demands payment—usually in cryptocurrencies like Bitcoin or Monero—in exchange for sending it. There is no guarantee of recovery even after paying.',
+      vector: 'Emails with malicious attachments (Office macros), illegitimate download sites, unpatched network vulnerabilities (SMB/EternalBlue), RDP access with weak passwords.',
+      sintomas: [
+        'Files with unknown extensions (.locked, .encrypted, .enc)',
+        'Ransom note on the desktop or in each folder',
+        'Inability to open documents, photos or databases',
+        'CPU at 100% during the encryption phase',
+        'Changed or blank file icons',
+      ],
+      prevencion: [
+        'Perform regular offline and cloud backups',
+        'Keep the OS and applications up to date',
+        'Do not open attachments from unsolicited emails',
+        'Disable Office macros in corporate environments',
+        'Use two-factor authentication for remote access',
+      ],
+      herramienta: 'No More Ransom (nomoreransom.org)',
+      ejemplos: ['WannaCry', 'LockBit', 'REvil / Sodinokibi', 'Conti', 'Ryuk', 'BlackCat'],
+    },
+    rat: {
+      nombre: 'Remote Access Trojan (RAT)',
+      descripcion_corta: 'Allows an attacker to control your device remotely and completely silently.',
+      descripcion: 'A RAT (Remote Access Trojan) disguises itself as legitimate software to trick the user. Once executed, it establishes a persistent connection to the attacker\'s server using encrypted protocols (HTTPS/TLS over 443) to evade firewalls. The attacker gains full control: real-time screen, file access, camera/microphone activation, keylogging and arbitrary command execution.',
+      vector: 'Pirated software, email attachments disguised as documents, downloads from forums and P2P networks, social engineering.',
+      sintomas: [
+        'Unusual network activity, especially during idle hours',
+        'Unknown processes running in the background',
+        'Webcam indicator light turning on by itself',
+        'Degraded device performance for no apparent reason',
+        'Applications opening or closing on their own',
+      ],
+      prevencion: [
+        'Download software only from official manufacturer sites',
+        'Keep antivirus and firewall active and updated',
+        'Cover the webcam when not in use',
+        'Verify the digital signature of installers',
+        'Regularly check active processes',
+      ],
+      herramienta: 'Malwarebytes, Windows Defender Offline Scan',
+      ejemplos: ['Metasploit Meterpreter', 'DarkComet', 'NjRAT', 'AsyncRAT', 'QuasarRAT'],
+    },
+    spyware: {
+      nombre: 'Spyware',
+      descripcion_corta: 'Collects personal and browsing information without your knowledge and sends it to third parties.',
+      descripcion: 'Spyware installs itself silently and continuously monitors user activity: browsing history, credentials entered via Win32 API hooking (SetWindowsHookEx), periodic screenshots via GDI/BitBlt, and even audio conversations. Data is compressed, encrypted and exfiltrated at regular intervals to C2 servers.',
+      vector: 'Freeware with bundleware, malicious websites with browser exploits, phishing, fake browser extensions.',
+      sintomas: [
+        'Browser noticeably slower than usual',
+        'Changes to home page or search engine without your input',
+        'Hyper-personalized ads about recent conversations',
+        'Battery draining faster than normal on laptops',
+        'High background network data usage',
+      ],
+      prevencion: [
+        'Read freeware installation steps carefully before accepting',
+        'Use an ad and script blocker (uBlock Origin)',
+        'Regularly review and clean browser extensions',
+        'Use a password manager to detect compromised credentials',
+      ],
+      herramienta: 'Malwarebytes AdwCleaner, SUPERAntiSpyware',
+      ejemplos: ['CoolWebSearch', 'FinFisher', 'Pegasus (government-grade)', 'Gator'],
+    },
+    adware: {
+      nombre: 'Adware',
+      descripcion_corta: 'Displays invasive advertising and can redirect your browser to malicious sites.',
+      descripcion: 'Adware modifies the browser by installing unauthorized extensions, changing the default search engine through Group Policy (GPO), or modifying the hosts file. It injects JavaScript into every visited page to insert ads. Although its primary goal is to generate advertising revenue (pay-per-click), it can act as a dropper for more dangerous malware.',
+      vector: 'Freeware installers with pre-checked extras, fake browser extensions, third-party download sites.',
+      sintomas: [
+        'Pop-up ads on pages that do not normally show them',
+        'Search engine or home page changed without permission',
+        'Unknown extensions or toolbars in the browser',
+        'Redirects to ad sites when clicking links',
+        'General browser slowness',
+      ],
+      prevencion: [
+        'Always choose "Custom Installation" to deselect extras',
+        'Download software only from the official developer site',
+        'Use Unchecky to automatically deselect bundleware',
+        'Review installed browser extensions monthly',
+      ],
+      herramienta: 'Malwarebytes AdwCleaner (free)',
+      ejemplos: ['Superfish', 'Conduit', 'Babylon Toolbar', 'Ask Toolbar', 'OpenCandy'],
+    },
+    rootkit: {
+      nombre: 'Rootkit',
+      descripcion_corta: 'Hides in the deepest layers of the operating system to become completely undetectable.',
+      descripcion: 'A rootkit operates at the most privileged levels of the system (Ring 0 / kernel). It uses techniques such as DKOM (Direct Kernel Object Manipulation) to unlink its process from the active process list, SSDT (System Service Descriptor Table) hooking to intercept system calls and filter results, or bootkits that infect the MBR/VBR to run before the OS. A firmware rootkit survives full reinstallations.',
+      vector: 'Privilege escalation exploits, compromised installers (supply chain), physical access to the device.',
+      sintomas: [
+        'Security tools that suddenly stop working',
+        'Discrepancies between what different system tools show',
+        'Erratic and unpredictable operating system behavior',
+        'Significantly slower boot time',
+        'Files appearing and disappearing inexplicably',
+      ],
+      prevencion: [
+        'Enable Secure Boot in BIOS/UEFI',
+        'Keep firmware and drivers updated',
+        'Do not install software from unverified sources',
+        'Use Windows Trusted Boot',
+        'Consider a full reinstallation if seriously suspected',
+      ],
+      herramienta: 'Kaspersky TDSSKiller, GMER, Microsoft Rootkit Revealer',
+      ejemplos: ['Sony BMG rootkit', 'ZeroAccess', 'Necurs', 'Flame', 'Azazel', 'Avatar'],
+    },
+    gusano: {
+      nombre: 'Network Worm',
+      descripcion_corta: 'Spreads automatically across the network infecting other devices without user interaction.',
+      descripcion: 'Worms exploit network vulnerabilities (buffer overflows, use-after-free in network protocols) to inject shellcode into remote processes without authentication. After compromising the target, they execute their payload (malware download, backdoor, ransomware) and repeat the scanning and exploitation cycle exponentially. Propagation can saturate entire networks within minutes.',
+      vector: 'Unpatched network vulnerabilities (SMB, RDP), USB drives, services with weak passwords, shared network drives.',
+      sintomas: [
+        'Local network noticeably slow without apparent reason',
+        'High CPU and network bandwidth usage while idle',
+        'Massive outgoing connections to multiple IPs',
+        'Other devices on the network reporting simultaneous issues',
+        'Firewall logs with thousands of connection attempts',
+      ],
+      prevencion: [
+        'Keep the system updated with the latest security patches',
+        'Segment the network (VLANs) to limit propagation',
+        'Disable unnecessary network services (SMBv1, Telnet)',
+        'Use strong, unique passwords for network services',
+        'Monitor network traffic for anomalies',
+      ],
+      herramienta: 'Microsoft Safety Scanner, Windows Malicious Software Removal Tool',
+      ejemplos: ['WannaCry', 'Conficker', 'Blaster', 'Sasser', 'Slammer', 'Code Red'],
+    },
+    keylogger: {
+      nombre: 'Keylogger',
+      descripcion_corta: 'Records every keystroke, capturing passwords, private messages and banking data.',
+      descripcion: 'Software keyloggers use the SetWindowsHookEx(WH_KEYBOARD_LL) API to record keystrokes globally, or GetAsyncKeyState() in polling mode to capture key state. More advanced variants inject a DLL into the browser process to directly capture form field content before TLS encryption (form grabbing). Hardware keyloggers are physical devices invisible to any detection software.',
+      vector: 'Downloaded malicious software, phishing, physical access to the device (hardware keyloggers), trojans with an integrated keylogger component.',
+      sintomas: [
+        'Generally completely imperceptible to the user',
+        'Suspicious network activity — periodic small data transmissions',
+        'Compromised accounts despite not reusing passwords',
+        'For hardware keyloggers: unknown device in the keyboard USB port',
+      ],
+      prevencion: [
+        'Enable two-factor authentication on all accounts',
+        'Use the system on-screen keyboard for banking on untrusted devices',
+        'Physically inspect USB ports before using a public computer',
+        'Use a password manager with autofill (resists keyboard keyloggers)',
+      ],
+      herramienta: 'Malwarebytes, SpyBot Search & Destroy',
+      ejemplos: ['HawkEye', 'Snake Keylogger', 'Agent Tesla', 'Olympic Vision', 'Ardamax'],
+    },
+    cryptojacker: {
+      nombre: 'Cryptojacker',
+      descripcion_corta: 'Hijacks your processor\'s power to mine cryptocurrencies without your permission.',
+      descripcion: 'Cryptojacking implements Proof-of-Work (PoW) algorithms—especially CryptoNight for Monero due to its ASIC resistance—using the CPU\'s AES-NI instructions to maximize hashrate. In browsers it uses WebAssembly (WASM) to run native-speed code. Operators use mining pools (stratum+tcp://) to aggregate hashrate from thousands of victims and distribute rewards.',
+      vector: 'JavaScript scripts on compromised websites, browser extensions, downloaded malware, compromised Docker containers.',
+      sintomas: [
+        'CPU or GPU at 80–100% while browsing or at idle',
+        'Extremely slow or laggy device',
+        'Fans running at maximum speed continuously',
+        'Battery draining in minutes on laptops',
+        'Abnormally high electricity bills on servers',
+      ],
+      prevencion: [
+        'Install an anti-cryptomining extension (NoCoin, MinerBlock)',
+        'Use uBlock Origin with updated filter lists',
+        'Keep antivirus updated',
+        'Check CPU usage before and after opening web pages',
+      ],
+      herramienta: 'Malwarebytes, minerBlock browser extension',
+      ejemplos: ['Coinhive (inactive)', 'XMRig', 'PowerGhost', 'WannaMine', 'BadShell'],
+    },
+    botnet: {
+      nombre: 'Botnet',
+      descripcion_corta: 'Turns your device into a remotely controlled "zombie" to attack others or send spam.',
+      descripcion: 'A botnet is a network of infected devices controlled through a C2 (Command & Control) server. Modern botnets use P2P architectures or domain generation algorithms (DGA) to make the C2 resilient to takedowns. The botmaster can send digitally signed commands to all bots simultaneously: DDoS (UDP/SYN flood, HTTP flood), spam, credential stuffing, click fraud or distribution of additional payloads.',
+      vector: 'Downloaded malware, network exploits, weak credentials on RDP/SSH, IoT devices with default passwords.',
+      sintomas: [
+        'Intense network activity during idle hours',
+        'Slow device with no obviously responsible processes',
+        'IP address included in antispam blacklists',
+        'Internet provider notifying abuse from your IP',
+        'Router with massive outgoing connections to unknown IPs',
+      ],
+      prevencion: [
+        'Use strong and unique passwords, especially on router and remote services',
+        'Change default credentials on all IoT devices',
+        'Keep router firmware updated',
+        'Monitor outbound network traffic with the firewall',
+      ],
+      herramienta: 'Microsoft Safety Scanner, ESET Online Scanner',
+      ejemplos: ['Mirai (IoT)', 'Emotet', 'ZeuS / Zbot', 'Necurs', 'Cutwail', 'Kelihos'],
+    },
+    phishing: {
+      nombre: 'Phishing',
+      descripcion_corta: 'Tricks the user into voluntarily handing over credentials or personal data.',
+      descripcion: 'Modern phishing uses advanced evasion techniques: reverse proxy phishing kits (Evilginx2, Modlishka) that intercept credentials AND 2FA tokens in real time, typosquatting of domains registered with Let\'s Encrypt (valid HTTPS), and homograph attacks using visually identical Unicode characters (аpple.com with Cyrillic а). Spear phishing uses OSINT to personalize the deception with real victim data.',
+      vector: 'Mass or targeted email (spear phishing), SMS (smishing), phone calls (vishing), social networks and messaging apps.',
+      sintomas: [
+        'URL with subtle variations of the original (paypa1.com, micros0ft.com)',
+        'Invalid SSL certificate or one for a different domain than displayed',
+        'Extreme urgency language: "Your account will be blocked in 24h"',
+        'Grammatical errors or mistranslations in the message',
+        'Email sender with a suspicious domain',
+      ],
+      prevencion: [
+        'Always verify the full URL before entering any data',
+        'Enable phishing-resistant two-factor authentication (FIDO2/passkey)',
+        'Use a password manager (will not autocomplete on fake sites)',
+        'Do not click links in unsolicited emails; navigate directly to the site',
+        'Enable the browser\'s built-in anti-phishing protection',
+      ],
+      herramienta: 'Google Safe Browsing, Netcraft Anti-Phishing extension',
+      ejemplos: ['Microsoft 365 Credential Harvesting', 'Emotet (distribution)', 'PayPal phishing', 'Business Email Compromise (BEC)'],
+    },
+  },
+};
+
 // ── Estado del filtro ─────────────────────────────────────────────────────────
 
-let filtroCategoria = 'Todos';
+let filtroCategoria = '_todos_';
 let filtroBusqueda  = '';
+
+// ── Fusión base + idioma activo ───────────────────────────────────────────────
+
+function getAmenazas() {
+  const lang = window.ESTICC_LANG || 'es';
+  const i18n  = AMENAZAS_I18N[lang] || AMENAZAS_I18N.es;
+  return AMENAZAS_BASE.map(base => Object.assign({}, base, i18n[base.id] || {}));
+}
+
+// ── Render de chips de categoría ──────────────────────────────────────────────
+
+function renderChips() {
+  const chipsEl = document.getElementById('enc-chips');
+  if (!chipsEl) return;
+
+  const categorias = [...new Set(getAmenazas().map(a => a.categoria))];
+
+  chipsEl.innerHTML = [
+    `<button class="enc-chip${filtroCategoria === '_todos_' ? ' activo' : ''}" data-cat="_todos_">${t('enc.cat_todos')}</button>`,
+    ...categorias.map(c =>
+      `<button class="enc-chip${filtroCategoria === c ? ' activo' : ''}" data-cat="${c}">${t('enc.cat.' + c)}</button>`
+    ),
+  ].join('');
+
+  chipsEl.querySelectorAll('.enc-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      filtroCategoria = chip.dataset.cat;
+      chipsEl.querySelectorAll('.enc-chip').forEach(c => c.classList.remove('activo'));
+      chip.classList.add('activo');
+      renderGrid();
+    });
+  });
+}
 
 // ── Render de la grid ─────────────────────────────────────────────────────────
 
 function amenazasFiltradas() {
-  return AMENAZAS.filter(a => {
-    const matchCat = filtroCategoria === 'Todos' || a.categoria === filtroCategoria;
+  return getAmenazas().filter(a => {
+    const matchCat = filtroCategoria === '_todos_' || a.categoria === filtroCategoria;
     const q = filtroBusqueda.toLowerCase();
     const matchBusq = !q || [
       a.nombre, a.categoria, a.descripcion_corta, a.vector,
-      ...a.sintomas, ...a.prevencion, ...a.ejemplos,
-      ...(a.iocs || []),
-      ...(a.cves || []),
-      ...(a.mitre || []).map(m => `${m.id} ${m.nombre}`),
-    ].some(t => t.toLowerCase().includes(q));
+      ...(a.sintomas   || []),
+      ...(a.prevencion || []),
+      ...(a.ejemplos   || []),
+      ...(a.iocs       || []),
+      ...(a.cves       || []),
+      ...(a.mitre      || []).map(m => `${m.id} ${m.nombre}`),
+    ].some(text => text.toLowerCase().includes(q));
     return matchCat && matchBusq;
   });
 }
 
 function renderGrid() {
   const grid = document.getElementById('enc-grid');
+  if (!grid) return;
   const lista = amenazasFiltradas();
 
   if (!lista.length) {
-    grid.innerHTML = '<div class="enc-sin-resultados">No se encontraron amenazas con ese criterio.</div>';
+    grid.innerHTML = `<div class="enc-sin-resultados">${t('enc.sin_resultados')}</div>`;
     return;
   }
 
@@ -435,8 +721,8 @@ function renderGrid() {
       <div class="enc-card-top">
         <span class="enc-icono">${a.icono}</span>
         <div class="enc-badges">
-          <span class="enc-peligro ${a.peligro}">${a.peligro.toUpperCase()}</span>
-          <span class="enc-categoria-tag">${a.categoria}</span>
+          <span class="enc-peligro ${a.peligro}">${t('enc.peligro.' + a.peligro)}</span>
+          <span class="enc-categoria-tag">${t('enc.cat.' + a.categoria)}</span>
         </div>
       </div>
       <p class="enc-nombre">${a.nombre}</p>
@@ -444,7 +730,7 @@ function renderGrid() {
 
       <div class="enc-avanzado-extra">
         <div class="enc-tecnico-bloque">
-          <div class="enc-tecnico-label">MITRE ATT&CK</div>
+          <div class="enc-tecnico-label">MITRE ATT&amp;CK</div>
           <div class="enc-mitre-tags">
             ${(a.mitre || []).map(m =>
               `<span class="enc-mitre-tag" title="${m.nombre}">${m.id}</span>`
@@ -452,7 +738,7 @@ function renderGrid() {
           </div>
         </div>
         <div class="enc-tecnico-bloque">
-          <div class="enc-tecnico-label">IOCs destacados</div>
+          <div class="enc-tecnico-label">${t('enc.iocs_titulo')}</div>
           <div class="enc-ioc-lista">
             ${(a.iocs || []).slice(0, 2).map(ioc =>
               `<div class="enc-ioc">${ioc}</div>`
@@ -461,20 +747,20 @@ function renderGrid() {
         </div>
         ${a.cves?.length ? `
         <div class="enc-tecnico-bloque">
-          <div class="enc-tecnico-label">CVEs asociados</div>
+          <div class="enc-tecnico-label">${t('enc.cves_titulo')}</div>
           <div class="enc-cve-lista">
             ${a.cves.map(c => `<span class="enc-cve-tag">${c.split(' ')[0]}</span>`).join('')}
           </div>
         </div>` : ''}
         <div class="enc-tecnico-bloque">
-          <div class="enc-tecnico-label">Ejemplos conocidos</div>
+          <div class="enc-tecnico-label">${t('enc.ejemplos_titulo')}</div>
           <div class="enc-ejemplos">
-            ${a.ejemplos.map(e => `<span class="enc-ejemplo-tag">${e}</span>`).join('')}
+            ${(a.ejemplos || []).map(e => `<span class="enc-ejemplo-tag">${e}</span>`).join('')}
           </div>
         </div>
       </div>
 
-      <div class="enc-card-footer">Ver ficha completa →</div>
+      <div class="enc-card-footer">${t('enc.ver_ficha')}</div>
     </div>`).join('');
 
   grid.querySelectorAll('.enc-card').forEach(card => {
@@ -486,29 +772,28 @@ function renderGrid() {
 // ── Modal de detalle ──────────────────────────────────────────────────────────
 
 function abrirModal(id) {
-  const a = AMENAZAS.find(x => x.id === id);
+  const a = getAmenazas().find(x => x.id === id);
   if (!a) return;
 
   document.getElementById('enc-modal-icono').textContent   = a.icono;
   document.getElementById('enc-modal-titulo').textContent  = a.nombre;
   document.getElementById('enc-modal-subtitulo').innerHTML =
-    `<span class="enc-peligro ${a.peligro}" style="margin-right:6px;">${a.peligro.toUpperCase()}</span>${a.categoria}`;
+    `<span class="enc-peligro ${a.peligro}" style="margin-right:6px;">${t('enc.peligro.' + a.peligro)}</span>${t('enc.cat.' + a.categoria)}`;
 
   document.getElementById('enc-modal-descripcion').textContent = a.descripcion;
   document.getElementById('enc-modal-vector').textContent      = a.vector;
 
   document.getElementById('enc-modal-sintomas').innerHTML =
-    a.sintomas.map(s => `<li>${s}</li>`).join('');
+    (a.sintomas || []).map(s => `<li>${s}</li>`).join('');
 
   document.getElementById('enc-modal-prevencion').innerHTML =
-    a.prevencion.map(p => `<li>${p}</li>`).join('');
+    (a.prevencion || []).map(p => `<li>${p}</li>`).join('');
 
   document.getElementById('enc-modal-ejemplos').innerHTML =
-    a.ejemplos.map(e => `<span class="enc-ejemplo-modal">${e}</span>`).join('');
+    (a.ejemplos || []).map(e => `<span class="enc-ejemplo-modal">${e}</span>`).join('');
 
   document.getElementById('enc-modal-herramienta').textContent = `🛠️ ${a.herramienta}`;
 
-  // Sección técnica
   document.getElementById('enc-modal-mitre').innerHTML =
     (a.mitre || []).map(m =>
       `<div class="enc-modal-mitre-row">
@@ -529,6 +814,24 @@ function abrirModal(id) {
     cveSec.style.display = 'none';
   }
 
+  // Actualizar headings del modal al idioma activo
+  const headings = {
+    'enc-modal-h-que-es':    'enc.modal_que_es',
+    'enc-modal-h-vector':    'enc.modal_vector',
+    'enc-modal-h-sintomas':  'enc.modal_sintomas',
+    'enc-modal-h-prevencion':'enc.modal_prevencion',
+    'enc-modal-h-ejemplos':  'enc.modal_ejemplos',
+    'enc-modal-h-herramienta':'enc.modal_herramienta',
+    'enc-modal-h-mitre':     'enc.modal_mitre',
+    'enc-modal-h-iocs':      'enc.modal_iocs',
+    'enc-modal-h-cves':      'enc.modal_cves',
+    'enc-modal-h-tecnico':   'enc.modal_tecnico',
+  };
+  Object.entries(headings).forEach(([elId, key]) => {
+    const el = document.getElementById(elId);
+    if (el) el.textContent = t(key);
+  });
+
   document.getElementById('enc-modal-overlay').classList.add('visible');
   document.body.style.overflow = 'hidden';
 }
@@ -538,29 +841,26 @@ function cerrarModal() {
   document.body.style.overflow = '';
 }
 
+// ── Refresco al cambiar idioma ────────────────────────────────────────────────
+
+window.refreshEnciclopedia = function () {
+  const buscarEl = document.getElementById('enc-buscar');
+  if (buscarEl) buscarEl.placeholder = t('enc.buscar_placeholder');
+  renderChips();
+  renderGrid();
+};
+
 // ── Inicialización ────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
-  const categorias = ['Todos', ...new Set(AMENAZAS.map(a => a.categoria))];
-  const chipsEl    = document.getElementById('enc-chips');
-
-  chipsEl.innerHTML = categorias.map(c =>
-    `<button class="enc-chip${c === 'Todos' ? ' activo' : ''}" data-cat="${c}">${c}</button>`
-  ).join('');
-
-  chipsEl.querySelectorAll('.enc-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      filtroCategoria = chip.dataset.cat;
-      chipsEl.querySelectorAll('.enc-chip').forEach(c => c.classList.remove('activo'));
-      chip.classList.add('activo');
+  const buscarEl = document.getElementById('enc-buscar');
+  if (buscarEl) {
+    buscarEl.placeholder = t('enc.buscar_placeholder');
+    buscarEl.addEventListener('input', e => {
+      filtroBusqueda = e.target.value;
       renderGrid();
     });
-  });
-
-  document.getElementById('enc-buscar').addEventListener('input', e => {
-    filtroBusqueda = e.target.value;
-    renderGrid();
-  });
+  }
 
   document.getElementById('enc-modal-cerrar').addEventListener('click', cerrarModal);
   document.getElementById('enc-modal-overlay').addEventListener('click', e => {
@@ -570,5 +870,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape') cerrarModal();
   });
 
+  renderChips();
   renderGrid();
 });

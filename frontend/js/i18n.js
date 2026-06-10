@@ -145,8 +145,9 @@ const ESTICC_STRINGS = {
       muestreo_preciso:   '🔬 Preciso (5s)',
       guardar_btn:        'Guardar cambios',
       guardado:           'Configuración guardada',
-      enc_note:           'La Enciclopedia de Malware está disponible solo en español en esta versión.',
+      enc_note:           '',
       // ── Prioridad 5: Escaneo automático y recordatorio (background.js) ──────
+
       autoscan_label:     'Analizar automáticamente al abrir la aplicación',  // Toggle del panel config
       autoscan_desc:      'Ejecuta los 5 escáneres al iniciar sin necesidad de pulsar ningún botón',
       recordatorio_label: 'Recordatorio si no analizo en',                    // Label del selector de días
@@ -213,6 +214,47 @@ const ESTICC_STRINGS = {
       // ── Modo avanzado: tabla de especificaciones ─────────────────────────
       specs_titulo:       'Especificaciones del Sistema',       // Título de la tabla avanzada
       ver_procesos:       'Ver procesos',                       // Enlace al panel de procesos
+    },
+    enc: {
+      // ── Buscador y grid ──────────────────────────────────────────────────
+      buscar_placeholder: 'Buscar por nombre, síntoma, vector de ataque…',
+      sin_resultados:     'No se encontraron amenazas con ese criterio.',
+      ver_ficha:          'Ver ficha completa →',
+      // ── Niveles de peligro ───────────────────────────────────────────────
+      peligro: {
+        critico: 'CRÍTICO',
+        alto:    'ALTO',
+        medio:   'MEDIO',
+      },
+      // ── Etiquetas de categoría ───────────────────────────────────────────
+      cat_todos:    'Todos',
+      cat: {
+        Ransomware:   'Ransomware',
+        Troyanos:     'Troyanos',
+        Spyware:      'Spyware',
+        Adware:       'Adware',
+        Rootkits:     'Rootkits',
+        Gusanos:      'Gusanos',
+        Keyloggers:   'Keyloggers',
+        Cryptojackers:'Cryptojackers',
+        Botnets:      'Botnets',
+        Vectores:     'Vectores',
+      },
+      // ── Cabeceras de tarjeta (modo avanzado) ─────────────────────────────
+      iocs_titulo:     'IOCs destacados',
+      cves_titulo:     'CVEs asociados',
+      ejemplos_titulo: 'Ejemplos conocidos',
+      // ── Cabeceras del modal ──────────────────────────────────────────────
+      modal_que_es:     '¿Qué es?',
+      modal_vector:     'Vector de ataque',
+      modal_sintomas:   'Señales de infección',
+      modal_prevencion: 'Cómo prevenirlo',
+      modal_ejemplos:   'Ejemplos conocidos',
+      modal_herramienta:'Herramienta recomendada',
+      modal_mitre:      'MITRE ATT&CK',
+      modal_iocs:       'Indicadores de Compromiso (IOCs)',
+      modal_cves:       'CVEs asociados',
+      modal_tecnico:    '⚙️ Información técnica',
     },
   },
 
@@ -355,7 +397,7 @@ const ESTICC_STRINGS = {
       muestreo_preciso:   '🔬 Precise (5s)',
       guardar_btn:        'Save changes',
       guardado:           'Settings saved',
-      enc_note:           'The Malware Encyclopedia is only available in Spanish in this version.',
+      enc_note:           '',
       // ── Priority 5: Auto-scan and reminder (background.js) ──────────────────
       autoscan_label:     'Automatically scan when opening the app',
       autoscan_desc:      'Runs all 5 scanners on startup without pressing any button',
@@ -424,6 +466,47 @@ const ESTICC_STRINGS = {
       specs_titulo:       'System Specifications',
       ver_procesos:       'View processes',
     },
+    enc: {
+      // ── Search and grid ──────────────────────────────────────────────────
+      buscar_placeholder: 'Search by name, symptom, attack vector…',
+      sin_resultados:     'No threats found matching that criteria.',
+      ver_ficha:          'View full entry →',
+      // ── Danger levels ────────────────────────────────────────────────────
+      peligro: {
+        critico: 'CRITICAL',
+        alto:    'HIGH',
+        medio:   'MEDIUM',
+      },
+      // ── Category labels ──────────────────────────────────────────────────
+      cat_todos:    'All',
+      cat: {
+        Ransomware:   'Ransomware',
+        Troyanos:     'Trojans',
+        Spyware:      'Spyware',
+        Adware:       'Adware',
+        Rootkits:     'Rootkits',
+        Gusanos:      'Worms',
+        Keyloggers:   'Keyloggers',
+        Cryptojackers:'Cryptojackers',
+        Botnets:      'Botnets',
+        Vectores:     'Attack Vectors',
+      },
+      // ── Card headers (advanced mode) ─────────────────────────────────────
+      iocs_titulo:     'Notable IOCs',
+      cves_titulo:     'Associated CVEs',
+      ejemplos_titulo: 'Known examples',
+      // ── Modal headings ───────────────────────────────────────────────────
+      modal_que_es:     'What is it?',
+      modal_vector:     'Attack vector',
+      modal_sintomas:   'Signs of infection',
+      modal_prevencion: 'How to prevent it',
+      modal_ejemplos:   'Known examples',
+      modal_herramienta:'Recommended tool',
+      modal_mitre:      'MITRE ATT&CK',
+      modal_iocs:       'Indicators of Compromise (IOCs)',
+      modal_cves:       'Associated CVEs',
+      modal_tecnico:    '⚙️ Technical information',
+    },
   },
 };
 
@@ -461,5 +544,9 @@ function applyTranslations() {
   });
   // Actualizar lang en <html>
   document.documentElement.lang = window.ESTICC_LANG || 'es';
+  // Re-renderizar la enciclopedia si ya está inicializada
+  if (typeof window.refreshEnciclopedia === 'function') {
+    window.refreshEnciclopedia();
+  }
 }
 window.applyTranslations = applyTranslations;
