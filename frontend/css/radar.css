@@ -1,13 +1,5 @@
 /* ── Radar OSINT — estilos del panel ─────────────────────────────────────── */
 
-.radar-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-}
-
 .radar-meta {
   font-size: 12px;
   color: var(--text-dim);
@@ -53,9 +45,7 @@
 
 /* ── Alertas modo básico ────────────────────────────────────────────────── */
 
-.radar-alertas-basico {
-  margin-top: 16px;
-}
+.radar-alertas-basico { margin-top: 16px; }
 
 .radar-alerta-basica {
   border-left: 4px solid;
@@ -64,15 +54,8 @@
   margin-bottom: 8px;
 }
 
-.radar-alerta-basica.critico {
-  border-left-color: var(--danger);
-  background: rgba(248,81,73,0.07);
-}
-
-.radar-alerta-basica.alto {
-  border-left-color: var(--warn);
-  background: rgba(210,153,34,0.07);
-}
+.radar-alerta-basica.critico { border-left-color: var(--danger); background: rgba(248,81,73,0.07); }
+.radar-alerta-basica.alto    { border-left-color: var(--warn);   background: rgba(210,153,34,0.07); }
 
 .radar-alerta-basica-titulo {
   font-size: 13px;
@@ -108,15 +91,8 @@
   border-left: 4px solid;
 }
 
-.radar-alerta.critico {
-  background: rgba(248,81,73,0.07);
-  border-left-color: var(--danger);
-}
-
-.radar-alerta.alto {
-  background: rgba(210,153,34,0.07);
-  border-left-color: var(--warn);
-}
+.radar-alerta.critico { background: rgba(248,81,73,0.07);  border-left-color: var(--danger); }
+.radar-alerta.alto    { background: rgba(210,153,34,0.07); border-left-color: var(--warn); }
 
 .radar-alerta-header {
   display: flex;
@@ -135,15 +111,8 @@
   letter-spacing: 0.5px;
 }
 
-.radar-alerta-nivel.critico {
-  background: rgba(248,81,73,0.2);
-  color: var(--danger);
-}
-
-.radar-alerta-nivel.alto {
-  background: rgba(210,153,34,0.2);
-  color: var(--warn);
-}
+.radar-alerta-nivel.critico { background: rgba(248,81,73,0.2);  color: var(--danger); }
+.radar-alerta-nivel.alto    { background: rgba(210,153,34,0.2); color: var(--warn); }
 
 .radar-alerta-coincidencia {
   font-family: 'Consolas', 'Courier New', monospace;
@@ -160,24 +129,15 @@
   margin-bottom: 8px;
 }
 
-.radar-alerta-noticia {
-  font-size: 12px;
-  color: var(--text-dim);
-}
-
-.radar-alerta-noticia a {
-  color: var(--accent);
-  text-decoration: none;
-}
-
+.radar-alerta-noticia         { font-size: 12px; color: var(--text-dim); }
+.radar-alerta-noticia a       { color: var(--accent); text-decoration: none; }
 .radar-alerta-noticia a:hover { text-decoration: underline; }
 
 .radar-cve-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-top: 6px;
-  margin-bottom: 6px;
+  margin: 6px 0;
 }
 
 .radar-cve-tag {
@@ -190,7 +150,7 @@
   border: 1px solid rgba(248,81,73,0.25);
 }
 
-/* ── Tabla de noticias ──────────────────────────────────────────────────── */
+/* ── Tabla de noticias (vista avanzada) ─────────────────────────────────── */
 
 .radar-sev {
   display: inline-block;
@@ -204,17 +164,149 @@
 .radar-sev.alto    { background: var(--warn); }
 .radar-sev.info    { background: var(--border); }
 
-.radar-noticia-titulo a {
+.radar-noticia-titulo a       { color: var(--text); text-decoration: none; }
+.radar-noticia-titulo a:hover { color: var(--accent); text-decoration: underline; }
+
+/* ── Informe OSINT Semanal ───────────────────────────────────────────────── */
+
+#radar-informe-semana {
+  margin-top: 20px;
+}
+
+/* Cabecera del informe: título + fecha */
+.radar-informe-header {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px 16px;
+  background: rgba(88,166,255,0.06);
+  border: 1px solid rgba(88,166,255,0.18);
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.radar-informe-titulo {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.radar-informe-fecha {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.radar-informe-fallback {
+  font-style: italic;
+  color: var(--warn);
+  font-size: 11px;
+}
+
+/* Grupo de noticias por severidad */
+.radar-grupo-severidad {
+  margin-bottom: 20px;
+}
+
+.radar-grupo-titulo {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.radar-grupo-titulo.critico { color: var(--danger); border-bottom-color: rgba(248,81,73,0.3); }
+.radar-grupo-titulo.alto    { color: var(--warn);   border-bottom-color: rgba(210,153,34,0.3); }
+.radar-grupo-titulo.info    { color: var(--text-dim); }
+
+.radar-grupo-count {
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+/* Grid responsive de tarjetas: 1 columna en móvil, 2 en pantallas medianas */
+.radar-tarjetas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 10px;
+}
+
+/* Tarjeta individual de noticia */
+.radar-noticia-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  transition: border-color 0.15s;
+}
+
+.radar-noticia-card:hover { border-color: var(--accent); }
+
+/* Borde izquierdo de color según severidad */
+.radar-noticia-card.critico { border-left: 3px solid var(--danger); }
+.radar-noticia-card.alto    { border-left: 3px solid var(--warn); }
+.radar-noticia-card.info    { border-left: 3px solid var(--border); }
+
+/* Línea de metadata: punto de severidad + fuente + fecha */
+.radar-noticia-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+
+.radar-noticia-fuente {
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.radar-noticia-fecha {
+  margin-left: auto;  /* Empuja la fecha al extremo derecho */
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* Título de la noticia: enlace clickable */
+.radar-noticia-card-titulo {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.radar-noticia-card-titulo a {
   color: var(--text);
   text-decoration: none;
 }
 
-.radar-noticia-titulo a:hover {
+.radar-noticia-card-titulo a:hover {
   color: var(--accent);
   text-decoration: underline;
 }
 
-/* ── Sin amenazas — bloque sutil ─────────────────────────────────────────── */
+/* Resumen de texto: solo visible en modo avanzado (clase modo-avanzado-only) */
+.radar-noticia-card-resumen {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(48,54,61,0.5);
+}
+
+/* Pie de sección: "N más noticias" cuando se han truncado */
+.radar-mas-noticias {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: right;
+  margin-top: 6px;
+  font-style: italic;
+}
+
+/* ── Sin amenazas ────────────────────────────────────────────────────────── */
 
 .radar-sin-alertas-bloque {
   display: flex;
@@ -228,19 +320,9 @@
   border-radius: 8px;
 }
 
-.radar-sin-alertas-badge {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ok);
-  white-space: nowrap;
-}
+.radar-sin-alertas-badge { font-size: 13px; font-weight: 600; color: var(--ok); white-space: nowrap; }
+.radar-sin-alertas-sub   { font-size: 12px; color: var(--text-dim); }
 
-.radar-sin-alertas-sub {
-  font-size: 12px;
-  color: var(--text-dim);
-}
-
-/* Compat (modo avanzado) */
 .radar-sin-alertas {
   text-align: center;
   padding: 28px;
@@ -248,6 +330,8 @@
   font-size: 14px;
   margin-top: 8px;
 }
+
+/* ── Estados especiales ──────────────────────────────────────────────────── */
 
 .radar-demo-notice {
   background: rgba(88,166,255,0.06);
@@ -267,7 +351,86 @@
   font-size: 13px;
 }
 
-.radar-vacio-icono {
-  font-size: 40px;
-  margin-bottom: 12px;
+.radar-vacio-icono { font-size: 40px; margin-bottom: 12px; }
+
+/* ── Impresión / exportación PDF ─────────────────────────────────────────── */
+/*
+ * Al pulsar "Guardar PDF", window.print() activa estas reglas.
+ * Se oculta toda la UI de ESTICC excepto el contenido del informe del radar.
+ * Los enlaces se muestran con su URL entre paréntesis para documentos impresos.
+ */
+@media print {
+
+  /* Ocultar toda la shell de la aplicación */
+  header,
+  #sidebar,
+  #banner-recordatorio,
+  #banner-demo,
+  #panel-simulador,
+  #toast-container,
+  #tutorial-overlay  { display: none !important; }
+
+  /* Ocultar todos los paneles excepto el de radar */
+  main > .panel:not(#panel-radar) { display: none !important; }
+  #panel-radar { display: block !important; }
+
+  /* Ocultar elementos de interacción del panel radar */
+  #btn-radar,
+  #btn-radar-pdf,
+  .scan-btn,
+  .radar-meta,
+  .vista-avanzada,   /* La tabla raw no se imprime */
+  .vista-basica      /* Los contadores y alertas básicas tampoco */
+  { display: none !important; }
+
+  /* Mostrar el informe a pantalla completa */
+  body    { background: #fff !important; color: #000 !important; overflow: visible !important; }
+  #content-area,
+  main    { overflow: visible !important; height: auto !important; }
+  .app-layout { display: block !important; }
+
+  #radar-informe-contenido { display: block !important; }
+  #radar-informe-semana    { display: block !important; margin-top: 0 !important; }
+
+  /* Adaptar colores al papel blanco */
+  .radar-informe-header {
+    background: #f0f4ff !important;
+    border-color: #c8d8ff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .radar-informe-titulo { color: #1a3a8f !important; }
+  .radar-informe-fecha  { color: #555 !important; }
+  .radar-grupo-titulo.critico { color: #c0392b !important; }
+  .radar-grupo-titulo.alto    { color: #b7770d !important; }
+  .radar-grupo-titulo.info    { color: #555 !important; }
+
+  /* Tarjetas en papel */
+  .radar-noticia-card {
+    background: #fff !important;
+    border-color: #ddd !important;
+    page-break-inside: avoid;  /* Evitar que una tarjeta se parta entre páginas */
+    break-inside: avoid;
+  }
+  .radar-noticia-card.critico { border-left-color: #c0392b !important; }
+  .radar-noticia-card.alto    { border-left-color: #b7770d !important; }
+  .radar-noticia-card-titulo  { color: #000 !important; }
+  .radar-noticia-card-resumen { color: #444 !important; border-top-color: #eee !important; }
+  .radar-noticia-fuente       { color: #555 !important; }
+  .radar-noticia-fecha        { color: #555 !important; }
+
+  /* Mostrar la URL de los enlaces para que sea útil en papel */
+  .radar-noticia-card-titulo a::after {
+    content: " (" attr(href) ")";
+    font-size: 9px;
+    color: #666;
+    font-weight: 400;
+    word-break: break-all;
+  }
+
+  /* Una sola columna en papel: más legible que dos columnas estrechas */
+  .radar-tarjetas-grid { grid-template-columns: 1fr !important; }
+
+  /* No cortar grupos de noticias entre páginas si es posible */
+  .radar-grupo-severidad { page-break-inside: avoid; break-inside: avoid; }
 }

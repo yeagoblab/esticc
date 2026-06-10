@@ -679,7 +679,10 @@
         <div class="card">
           <div class="card-header">
             <h2 data-i18n="paneles.radar_titulo">Radar de Amenazas OSINT</h2>
-            <button class="scan-btn" id="btn-radar" data-i18n="botones.actualizar_radar">Actualizar radar</button>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button class="scan-btn" id="btn-radar" data-i18n="botones.actualizar_radar">Actualizar radar</button>
+              <button class="scan-btn scan-btn-secondary" id="btn-radar-pdf" style="display:none;" data-i18n="radar.guardar_pdf">🖨️ Guardar PDF</button>
+            </div>
           </div>
           <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px;" data-i18n="paneles.radar_fuentes">
             Monitoriza 6 fuentes · NIST NVD · Bleeping Computer · Krebs · SANS · The Hacker News · Reddit r/netsec

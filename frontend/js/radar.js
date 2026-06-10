@@ -1,64 +1,88 @@
 /**
  * radar.js — Panel OSINT Radar.
- * Obtiene noticias de 6 fuentes RSS de ciberseguridad vía sidecar Python
- * y las correlaciona con el último escaneo de puertos del sistema local.
+ *
+ * Flujo de ejecución:
+ *  1. radar_fetch   → lector_rss.run()   → descarga paralela de 6 feeds RSS
+ *  2. radar_correlate → correlacion.run() → cruza noticias con puertos locales abiertos
+ *  3. renderizar()  → genera el Informe OSINT Semanal (correlación + noticias + PDF)
+ *
+ * Informe OSINT Semanal:
+ *  - Alertas de correlación (puertos locales ↔ noticias)
+ *  - Noticias de interés de los últimos 7 días, agrupadas por severidad (crítico/alto/info)
+ *  - Cada noticia muestra título como enlace clickable, fuente, fecha relativa y resumen
+ *  - Botón "Guardar PDF" → window.print() con @media print en radar.css
  */
 
 (function () {
-  'use strict';  // Modo estricto: activa comprobaciones extra de JavaScript (no permite variables sin declarar)
+  'use strict';
 
-  // ── Estado interno del radar ─────────────────────────────────────────────────
-  // Objeto centralizado que mantiene el estado entre actualizaciones del radar
-
+  // ── Estado interno del módulo ─────────────────────────────────────────────────
+  // Centraliza todos los datos entre actualizaciones para que renderizar() no
+  // necesite parámetros y siempre trabaje con el snapshot más reciente.
   const estado = {
-    cargando:      false,  // Bandera para evitar llamadas simultáneas si el usuario hace doble click
-    noticias:      [],     // Array de noticias RSS descargadas (salida de radar_fetch)
-    alertas:       [],     // Array de alertas de correlación (salida de radar_correlate)
-    resumen:       { critico: 0, alto: 0, total: 0 },  // Contadores para los escudos de la vista básica
-    fuentesOk:     0,      // Número de feeds RSS descargados con éxito (de 6 posibles)
-    noticiasTotal: 0,      // Total de noticias descargadas (para mostrar en metadata)
-    timestamp:     null,   // Hora de la última actualización (string formateado)
+    cargando:      false,   // Previene doble click mientras el fetch está en curso
+    noticias:      [],      // Array completo de noticias descargadas (todas las fuentes)
+    alertas:       [],      // Array de alertas de correlación generadas por el backend
+    resumen:       { critico: 0, alto: 0, total: 0 },  // Contadores de alertas
+    fuentesOk:     0,       // Feeds RSS que respondieron correctamente (de 6 posibles)
+    noticiasTotal: 0,       // Total de noticias descargadas (para el footer del informe)
+    duracionMs:    0,       // Tiempo total del ciclo fetch+correlate en milisegundos
+    timestamp:     null,    // Fecha/hora de la última actualización (string legible)
+    fechaInforme:  null,    // Fecha formateada para la cabecera del informe
   };
 
-  // ── IPC directo a Tauri (sin pasar por el interceptor del simulador) ──────────
+  // ── Ventana temporal del informe semanal ──────────────────────────────────────
+  const VENTANA_SEMANA_MS = 7 * 24 * 60 * 60 * 1000;  // 7 días en milisegundos
 
-  /**
-   * invokeRaw() — Llama directamente a Tauri sin pasar por el simulador.
-   * El radar no tiene modo demo (requiere internet real), así que no usamos window.invoke().
-   */
+  // ── IPC directo a Tauri ───────────────────────────────────────────────────────
+  // Llama al comando Rust 'audit' sin pasar por el interceptor del simulador.
+  // El radar no tiene modo demo porque necesita internet real para los feeds RSS.
   function invokeRaw(action, extra) {
     if (!window.__TAURI__) {
-      // Si Tauri no está disponible (apertura en navegador), rechazar con mensaje claro
       return Promise.reject('window.__TAURI__ no disponible. Ejecuta desde Tauri.');
     }
-    // Object.assign combina {action} con extra (ej: {payload: {context: {...}}})
-    // El resultado es el objeto de argumentos que recibe el comando Rust 'audit'
     return window.__TAURI__.tauri.invoke('audit', Object.assign({ action }, extra || {}));
   }
 
-  // ── Inicialización tras carga del DOM ─────────────────────────────────────────
-
+  // ── Inicialización ────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
-    const btn = document.getElementById('btn-radar');
-    if (btn) btn.addEventListener('click', ejecutarRadar);  // Conectar el botón con la función principal
+    const btn    = document.getElementById('btn-radar');
+    const btnPdf = document.getElementById('btn-radar-pdf');
+
+    if (btn)    btn.addEventListener('click', ejecutarRadar);
+    // El botón PDF invoca window.print(); @media print en radar.css se encarga del resto
+    if (btnPdf) btnPdf.addEventListener('click', () => window.print());
+
+    // Estado vacío inicial: instrucciones antes de la primera actualización
+    const el = document.getElementById('resultado-radar');
+    if (el) {
+      el.innerHTML = `
+        <div class="radar-vacio">
+          <div class="radar-vacio-icono">📡</div>
+          Pulsa <strong>${t('botones.actualizar_radar')}</strong> para generar el Informe OSINT Semanal<br>
+          y correlacionar las amenazas publicadas con el estado de tu sistema.
+          <br><br>
+          <span style="font-size:11px;">
+            Para mejores resultados, ejecuta primero el escáner de <em>${t('nav.puertos')}</em>.
+          </span>
+        </div>`;
+    }
   });
 
-  // ── Función principal del radar ────────────────────────────────────────────────
-
+  // ── Ciclo principal del radar ─────────────────────────────────────────────────
   /**
-   * ejecutarRadar() — Orquesta el ciclo completo del Radar OSINT:
-   * 1. Descarga noticias RSS (radar_fetch)
-   * 2. Construye el contexto local (puertos del último escaneo)
-   * 3. Correlaciona noticias con el estado local (radar_correlate)
-   * 4. Renderiza los resultados en ambas vistas (básica y avanzada)
+   * ejecutarRadar() — Orquesta el ciclo completo:
+   *  1. Descarga noticias de 6 feeds RSS (radar_fetch)
+   *  2. Correlaciona con los puertos locales abiertos (radar_correlate)
+   *  3. Renderiza el Informe OSINT Semanal
    */
   async function ejecutarRadar() {
-    if (estado.cargando) return;  // Evitar ejecuciones paralelas si el usuario hace click varias veces
+    if (estado.cargando) return;  // Evitar ejecuciones paralelas
 
     const resultadoEl = document.getElementById('resultado-radar');
-    if (!resultadoEl) return;  // Salida segura si el panel no existe en el DOM
+    if (!resultadoEl) return;
 
-    // El radar no funciona en modo demo (necesita internet real para los feeds RSS)
+    // El radar no tiene datos ficticios; mostrar aviso si el modo demo está activo
     if (window.SIMULADOR?.activo) {
       resultadoEl.innerHTML = `
         <div class="radar-demo-notice">
@@ -69,175 +93,303 @@
       return;
     }
 
-    // ── Fase de carga ────────────────────────────────────────────────────────────
-    estado.cargando = true;  // Marcar como en progreso para evitar doble click
-    const btn = document.getElementById('btn-radar');
-    if (btn) { btn.disabled = true; btn.textContent = t('estados.analizando'); }  // Feedback visual inmediato
-    setLoading(true, 'Actualizando Radar OSINT…');
+    // ── Inicio de carga ───────────────────────────────────────────────────────
+    estado.cargando = true;
+    const btn    = document.getElementById('btn-radar');
+    const btnPdf = document.getElementById('btn-radar-pdf');
+    if (btn)    { btn.disabled = true; btn.textContent = t('estados.analizando'); }
+    if (btnPdf) btnPdf.style.display = 'none';  // Ocultar PDF durante la actualización
+    setLoading(true, t('radar.cargando'));
 
     try {
-      // ── Paso 1: Descargar noticias RSS desde el sidecar Python ───────────────
-      // radar_fetch llama a lector_rss.run() → descarga paralela de 6 feeds RSS
+      // ── Paso 1: Descargar noticias RSS ────────────────────────────────────
       const fetchRes = await invokeRaw('radar_fetch');
-      if (!fetchRes.ok) throw new Error(fetchRes.error || 'Error al obtener noticias');
+      if (!fetchRes.ok) throw new Error(fetchRes.error || t('radar.error_fetch'));
 
-      const noticias  = fetchRes.data?.noticias || [];   // Array de noticias con título, resumen, fecha, etc.
-      const metaFetch = fetchRes.meta || {};              // Metadata: cuántos feeds respondieron, tiempo, etc.
+      const noticias  = fetchRes.data?.noticias || [];
+      const metaFetch = fetchRes.meta || {};
 
-      // ── Paso 2: Construir el contexto local para la correlación ──────────────
-      // window.ULTIMO_SCAN se puebla en auditoria.js cuando el usuario escanea puertos/procesos
-      // Si no se ha escaneado todavía, puertos y procesos estarán vacíos (correlación solo por CVE)
+      // ── Paso 2: Construir contexto local y correlacionar ──────────────────
+      // window.ULTIMO_SCAN se rellena en auditoria.js cuando el usuario escanea
       const context = {
-        noticias,                                        // Las noticias recién descargadas
-        puertos:  window.ULTIMO_SCAN?.puertos  || [],   // Último escáner de puertos (puede ser [])
-        procesos: window.ULTIMO_SCAN?.procesos || [],   // Último escáner de procesos (reservado)
+        noticias,
+        puertos:  window.ULTIMO_SCAN?.puertos  || [],
+        procesos: window.ULTIMO_SCAN?.procesos || [],
       };
 
-      // ── Paso 3: Correlacionar noticias con el estado local ───────────────────
-      // radar_correlate llama a correlacion.run(context) en el sidecar Python
-      // payload.context se fusiona en el JSON IPC gracias al cambio en main.rs (payload: Option<Value>)
       const corrRes = await invokeRaw('radar_correlate', { payload: { context } });
-      if (!corrRes.ok) throw new Error(corrRes.error || 'Error en correlación');
+      if (!corrRes.ok) throw new Error(corrRes.error || t('radar.error_corr'));
 
-      // Actualizar el estado interno con los resultados de la correlación
+      // ── Actualizar estado ─────────────────────────────────────────────────
+      const ahora = new Date();
       estado.noticias      = noticias;
-      estado.alertas       = corrRes.data?.alertas || [];   // Array de alertas generadas
+      estado.alertas       = corrRes.data?.alertas || [];
       estado.resumen       = corrRes.data?.resumen  || { critico: 0, alto: 0, total: 0 };
-      estado.fuentesOk     = metaFetch.fuentes_ok  || 0;   // Feeds que respondieron correctamente
+      estado.fuentesOk     = metaFetch.fuentes_ok  || 0;
       estado.noticiasTotal = noticias.length;
-      estado.timestamp     = new Date().toLocaleTimeString('es-ES');  // Hora local formateada
+      estado.duracionMs    = (metaFetch.duracion_ms || 0) + (corrRes.meta?.duracion_ms || 0);
+      estado.timestamp     = ahora.toLocaleTimeString('es-ES');
+      // Fecha larga para la cabecera del informe: "martes, 10 de junio de 2026"
+      estado.fechaInforme  = ahora.toLocaleDateString(
+        window.ESTICC_LANG === 'en' ? 'en-US' : 'es-ES',
+        { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }
+      );
 
-      renderizar();  // Actualizar la UI con los nuevos datos
+      renderizar();
 
     } catch (err) {
-      // Mostrar el error en el panel (timeout, sin internet, sidecar caído...)
       resultadoEl.innerHTML =
-        `<p style="color:var(--danger);margin-top:16px;">Error: ${err}</p>`;
+        `<p style="color:var(--danger);margin-top:16px;">${t('estados.error')}: ${esc(String(err))}</p>`;
     } finally {
-      // Siempre restaurar la UI al estado normal, haya habido error o no
       estado.cargando = false;
-      if (btn) { btn.disabled = false; btn.textContent = t('botones.actualizar_radar'); }
+      if (btn)    { btn.disabled = false; btn.textContent = t('botones.actualizar_radar'); }
       setLoading(false);
     }
   }
 
-  // ── Renderizado principal ──────────────────────────────────────────────────────
-
+  // ── Renderizado principal ─────────────────────────────────────────────────────
   /**
-   * renderizar() — Genera el HTML de ambas vistas e inyecta la metadata.
-   * Las vistas básica y avanzada se generan siempre y el CSS decide cuál mostrar.
+   * renderizar() — Genera el HTML completo del informe e inyecta en #resultado-radar.
+   * Estructura:
+   *   [vista-basica]  Contadores + alertas compactas
+   *   [siempre]       Informe OSINT Semanal (correlación + noticias de la semana)
+   *   [vista-avanzada] Tabla raw de todas las noticias
+   *   [siempre]       Footer de metadata
    */
   function renderizar() {
     const el = document.getElementById('resultado-radar');
     if (!el) return;
 
-    // Metadata visible debajo del panel (fuentes, total de noticias, timestamp)
-    const meta = estado.timestamp
-      ? `<div class="radar-meta" style="margin-top:14px;">
-           Actualizado: ${estado.timestamp} &nbsp;·&nbsp;
-           ${estado.fuentesOk} fuentes &nbsp;·&nbsp;
-           ${estado.noticiasTotal} noticias analizadas
-         </div>`
-      : '';
+    // Mostrar botón PDF una vez que hay contenido
+    const btnPdf = document.getElementById('btn-radar-pdf');
+    if (btnPdf) btnPdf.style.display = '';
 
-    // Inyectar ambas vistas en el DOM (una oculta según el modo actual)
     el.innerHTML = `
-      <div class="vista-basica">${vistaBasica()}</div>
-      <div class="vista-avanzada">${vistaAvanzada()}</div>
-      ${meta}
-    `;
+      <div id="radar-informe-contenido">
+
+        <!-- Vista básica: contadores + alertas simplificadas -->
+        <div class="vista-basica">${seccionContadores()}${alertasBasicas()}</div>
+
+        <!-- Informe OSINT Semanal: visible en ambos modos -->
+        ${informeSemanal()}
+
+        <!-- Vista avanzada: tabla raw de todas las noticias + alertas detalladas -->
+        <div class="vista-avanzada">
+          ${alertasAvanzadas()}
+          ${tablaRaw()}
+        </div>
+
+        <!-- Footer de metadata: timestamp, fuentes, noticias, duración -->
+        ${footerMeta()}
+
+      </div>`;
   }
 
-  // ── Vista básica ───────────────────────────────────────────────────────────────
-
-  /**
-   * vistaBasica() — Genera contadores grandes + lista resumida de alertas.
-   * Diseñada para usuarios sin conocimientos técnicos: visual, directo, sin tecnicismos.
-   */
-  function vistaBasica() {
-    const { critico, alto, total } = estado.resumen;
-
-    // Tres contadores grandes: alertas críticas, alertas altas, noticias revisadas
-    // El color del borde depende de si hay alertas (critico/alto/ok)
-    const contadores = `
+  // ── Sección: Contadores (vista básica) ───────────────────────────────────────
+  function seccionContadores() {
+    const { critico, alto } = estado.resumen;
+    return `
       <div class="radar-escudos-wrap">
         <div class="radar-contador ${critico > 0 ? 'critico' : 'ok'}">
           <div class="radar-contador-num">${critico}</div>
-          <div class="radar-contador-label">Alertas críticas</div>
+          <div class="radar-contador-label">${t('radar.alertas_criticas')}</div>
         </div>
         <div class="radar-contador ${alto > 0 ? 'alto' : 'ok'}">
           <div class="radar-contador-num">${alto}</div>
-          <div class="radar-contador-label">Alertas altas</div>
+          <div class="radar-contador-label">${t('radar.alertas_altas')}</div>
         </div>
         <div class="radar-contador ok">
           <div class="radar-contador-num">${estado.noticiasTotal}</div>
-          <div class="radar-contador-label">Noticias revisadas</div>
+          <div class="radar-contador-label">${t('radar.noticias_revisadas')}</div>
         </div>
       </div>`;
+  }
 
-    if (total === 0) {
-      return contadores + `
-        <div class="radar-sin-alertas-bloque">
-          <span class="radar-sin-alertas-badge">✅ Sin amenazas relevantes</span>
-          <span class="radar-sin-alertas-sub">Las ${estado.noticiasTotal} noticias analizadas no presentan coincidencias con tu sistema.</span>
+  // ── Sección: Alertas simplificadas (vista básica) ────────────────────────────
+  function alertasBasicas() {
+    if (!estado.alertas.length) {
+      return `
+        <div class="radar-sin-alertas-bloque" style="margin-top:12px;">
+          <span class="radar-sin-alertas-badge">✅ ${t('radar.sin_amenazas')}</span>
+          <span class="radar-sin-alertas-sub">
+            ${estado.noticiasTotal} ${t('radar.noticias_sin_coincidencia')}
+          </span>
         </div>`;
     }
-
-    // Con alertas: mostrar tarjetas simplificadas con el tipo de amenaza y la explicación
-    const alertasHtml = estado.alertas.map(a => {
-      const icono  = a.nivel === 'critico' ? '🔴' : '🟡';  // Color semáforo para el nivel
-      // El tipo 'puerto' significa coincidencia directa; 'cve' significa vulnerabilidad publicada
+    const items = estado.alertas.map(a => {
+      const icono  = a.nivel === 'critico' ? '🔴' : '🟡';
       const titulo = a.tipo === 'puerto'
-        ? `Puerto expuesto detectado: ${esc(a.coincidencia)}`
-        : `Vulnerabilidad publicada: ${esc(a.coincidencia)}`;
+        ? `${t('radar.puerto_expuesto')}: ${esc(a.coincidencia)}`
+        : `${t('radar.vulnerabilidad')}: ${esc(a.coincidencia)}`;
       return `
         <div class="radar-alerta-basica ${a.nivel}">
           <div class="radar-alerta-basica-titulo">${icono} ${titulo}</div>
           <div class="radar-alerta-basica-desc">${esc(a.explicacion)}</div>
         </div>`;
     }).join('');
-
-    return contadores + `<div class="radar-alertas-basico">${alertasHtml}</div>`;
+    return `<div class="radar-alertas-basico">${items}</div>`;
   }
 
-  // ── Vista avanzada ─────────────────────────────────────────────────────────────
-
+  // ── Informe OSINT Semanal ─────────────────────────────────────────────────────
   /**
-   * vistaAvanzada() — Combina las alertas detalladas con la tabla de noticias completa.
+   * informeSemanal() — Filtra las noticias de los últimos 7 días y las agrupa
+   * por severidad (crítico → alto → info) en secciones con cabeceras.
+   * Este bloque es el núcleo del informe y se muestra en ambos modos (básico y avanzado).
+   * Es el único contenido que se imprime al generar el PDF.
    */
-  function vistaAvanzada() {
-    return alertasAvanzado() + tablaDeNoticias();
+  function informeSemanal() {
+    const ahora  = Date.now();
+
+    // Filtrar noticias publicadas dentro de la ventana de 7 días
+    const semana = estado.noticias.filter(n => {
+      try {
+        return (ahora - new Date(n.fecha).getTime()) <= VENTANA_SEMANA_MS;
+      } catch { return false; }
+    });
+
+    // Si ninguna noticia tiene fecha reciente (feeds con fechas antiguas o sin fecha),
+    // mostrar las 20 más recientes disponibles como fallback
+    const fuente = semana.length >= 3 ? semana : estado.noticias.slice(0, 20);
+    const esCompletaSemana = semana.length >= 3;
+
+    // Agrupar por severidad para presentarlas en secciones diferenciadas
+    const criticas = fuente.filter(n => n.severidad === 'critico');
+    const altas    = fuente.filter(n => n.severidad === 'alto');
+    const infos    = fuente.filter(n => n.severidad === 'info');
+
+    // Cabecera del informe con fecha y nota de fallback si aplica
+    const cabecera = `
+      <div class="radar-informe-header" id="radar-informe-print-header">
+        <div class="radar-informe-titulo">
+          📰 ${t('radar.informe_titulo')}
+        </div>
+        <div class="radar-informe-fecha">
+          ${estado.fechaInforme || ''}
+          ${!esCompletaSemana ? `<span class="radar-informe-fallback"> — ${t('radar.ultimas_disponibles')}</span>` : ''}
+        </div>
+      </div>`;
+
+    // Construir cada sección si tiene noticias
+    const secCriticas = criticas.length
+      ? seccionNoticias(criticas, 'critico', `🔴 ${t('radar.sec_criticas')}`, criticas.length)
+      : '';
+    const secAltas = altas.length
+      ? seccionNoticias(altas, 'alto', `🟡 ${t('radar.sec_altas')}`, altas.length)
+      : '';
+    const secInfo = infos.length
+      ? seccionNoticias(infos, 'info', `ℹ️ ${t('radar.sec_info')}`, infos.length)
+      : '';
+
+    // Si no hay noticias en absoluto (todos los feeds fallaron)
+    const sinDatos = !criticas.length && !altas.length && !infos.length
+      ? `<div class="radar-sin-alertas" style="margin-top:16px;">
+           ${t('radar.sin_noticias_semana')}
+         </div>`
+      : '';
+
+    return `
+      <div class="radar-informe-seccion" id="radar-informe-semana">
+        ${cabecera}
+        ${secCriticas}
+        ${secAltas}
+        ${secInfo}
+        ${sinDatos}
+      </div>`;
   }
 
   /**
-   * alertasAvanzado() — Genera las tarjetas de alerta con todos los detalles técnicos:
-   * nivel, tipo, coincidencia exacta, explicación, CVEs y enlace a la noticia fuente.
+   * seccionNoticias() — Genera una sección con título de severidad y sus tarjetas.
+   * Limita a 10 tarjetas por sección para no saturar el informe.
    */
-  function alertasAvanzado() {
+  function seccionNoticias(lista, nivel, titulo, total) {
+    const MAX_TARJETAS = 10;
+    const mostrar = lista.slice(0, MAX_TARJETAS);
+    const restantes = total > MAX_TARJETAS ? total - MAX_TARJETAS : 0;
+
+    const tarjetas = mostrar.map(n => tarjetaNoticia(n)).join('');
+
+    const masHtml = restantes
+      ? `<div class="radar-mas-noticias">+${restantes} ${t('radar.mas_noticias')}</div>`
+      : '';
+
+    return `
+      <div class="radar-grupo-severidad">
+        <div class="radar-grupo-titulo ${nivel}">
+          ${titulo} <span class="radar-grupo-count">(${total})</span>
+        </div>
+        <div class="radar-tarjetas-grid">
+          ${tarjetas}
+        </div>
+        ${masHtml}
+      </div>`;
+  }
+
+  /**
+   * tarjetaNoticia() — Genera la tarjeta individual de una noticia.
+   * Siempre visible: punto de severidad, título como enlace, fuente y fecha relativa.
+   * Solo en modo avanzado (clase modo-avanzado-only): resumen de texto.
+   */
+  function tarjetaNoticia(n) {
+    // Calcular cuántos días hace que se publicó la noticia
+    let etiquetaDias = '';
+    try {
+      const diasAtras = Math.floor((Date.now() - new Date(n.fecha).getTime()) / 86_400_000);
+      if      (diasAtras === 0) etiquetaDias = t('radar.hoy');
+      else if (diasAtras === 1) etiquetaDias = t('radar.ayer');
+      else if (diasAtras <  7)  etiquetaDias = `${t('radar.hace')} ${diasAtras} ${t('radar.dias')}`;
+      else                      etiquetaDias = n.fecha?.substring(0, 10) || '';
+    } catch { etiquetaDias = n.fecha?.substring(0, 10) || ''; }
+
+    // El título es un enlace externo si la noticia tiene URL; si no, texto plano
+    const tituloHtml = n.enlace
+      ? `<a href="${esc(n.enlace)}" target="_blank" rel="noopener noreferrer">${esc(n.titulo)}</a>`
+      : `<span>${esc(n.titulo)}</span>`;
+
+    // El resumen solo se muestra en modo avanzado para no saturar la vista básica
+    const resumenHtml = n.resumen
+      ? `<div class="radar-noticia-card-resumen modo-avanzado-only">
+           ${esc(n.resumen.length > 200 ? n.resumen.slice(0, 200) + '…' : n.resumen)}
+         </div>`
+      : '';
+
+    return `
+      <div class="radar-noticia-card ${n.severidad}">
+        <div class="radar-noticia-card-meta">
+          <span class="radar-sev ${n.severidad}"></span>
+          <span class="radar-noticia-fuente">${esc(n.fuente)}</span>
+          <span class="radar-noticia-fecha">${etiquetaDias}</span>
+        </div>
+        <div class="radar-noticia-card-titulo">${tituloHtml}</div>
+        ${resumenHtml}
+      </div>`;
+  }
+
+  // ── Sección: Alertas detalladas (vista avanzada) ──────────────────────────────
+  function alertasAvanzadas() {
     if (!estado.alertas.length) {
-      return `<div class="radar-sin-alertas" style="padding:16px;">
-        <span style="font-size:20px;">✅</span>&nbsp; Sin alertas de correlación
+      return `<div class="radar-sin-alertas">
+        <span style="font-size:20px;">✅</span>&nbsp; ${t('radar.sin_alertas_correlacion')}
       </div>`;
     }
 
     const titulo = `<div class="radar-alertas-titulo">
-      ⚠️ Alertas de correlación (${estado.alertas.length})
+      ⚠️ ${t('radar.alertas_correlacion')} (${estado.alertas.length})
     </div>`;
 
     const items = estado.alertas.map(a => {
-      // CVEs referenciados en la noticia (si los hay) como chips rojos monoespaciados
-      const cveHtml = (a.cves?.length)
-        ? `<div class="radar-cve-tags">${a.cves.map(c => `<span class="radar-cve-tag">${esc(c)}</span>`).join('')}</div>`
-        : '';
-
-      // Enlace a la noticia que generó la alerta (para que el usuario pueda leer el artículo completo)
-      const noticiaHtml = a.noticia
-        ? `<div class="radar-alerta-noticia">
-             Fuente: <strong>${esc(a.noticia.fuente)}</strong> —
-             <a href="${esc(a.noticia.enlace)}" target="_blank">${esc(a.noticia.titulo)}</a>
+      const cveHtml = a.cves?.length
+        ? `<div class="radar-cve-tags">
+             ${a.cves.map(c => `<span class="radar-cve-tag">${esc(c)}</span>`).join('')}
            </div>`
         : '';
-
+      const noticiaHtml = a.noticia
+        ? `<div class="radar-alerta-noticia">
+             ${t('radar.fuente_label')}: <strong>${esc(a.noticia.fuente)}</strong> —
+             <a href="${esc(a.noticia.enlace)}" target="_blank" rel="noopener noreferrer">
+               ${esc(a.noticia.titulo)}
+             </a>
+           </div>`
+        : '';
       return `
         <div class="radar-alerta ${a.nivel}">
           <div class="radar-alerta-header">
@@ -253,22 +405,20 @@
     return `<div style="margin-bottom:20px;">${titulo}${items}</div>`;
   }
 
-  /**
-   * tablaDeNoticias() — Genera la tabla completa de noticias RSS ordenadas por fecha.
-   * Limita a 40 noticias para no sobrecargar el DOM con cientos de filas.
-   */
-  function tablaDeNoticias() {
+  // ── Tabla raw (vista avanzada) ────────────────────────────────────────────────
+  // Muestra todas las noticias descargadas sin filtro, para analistas que quieren
+  // revisar el feed completo más allá de los últimos 7 días.
+  function tablaRaw() {
     if (!estado.noticias.length) return '';
 
-    const filas = estado.noticias.slice(0, 40).map(n => {  // Máximo 40 noticias en la tabla
-      const fecha    = n.fecha ? n.fecha.substring(0, 10) : '—';  // Solo la parte YYYY-MM-DD de la fecha ISO
-      const sevClass = n.severidad || 'info';   // Clase CSS del punto de color (critico/alto/info)
-      // Si hay enlace, la noticia es clickable; si no, mostrar solo el texto
-      const enlace   = n.enlace
-        ? `<a href="${esc(n.enlace)}" target="_blank">${esc(n.titulo)}</a>`
+    const MAX_FILAS = 50;  // Limitar a 50 filas para no sobrecargar el DOM
+    const filas = estado.noticias.slice(0, MAX_FILAS).map(n => {
+      const fecha  = n.fecha ? n.fecha.substring(0, 10) : '—';
+      const enlace = n.enlace
+        ? `<a href="${esc(n.enlace)}" target="_blank" rel="noopener noreferrer">${esc(n.titulo)}</a>`
         : esc(n.titulo);
       return `<tr>
-        <td style="width:16px;"><span class="radar-sev ${sevClass}"></span></td>
+        <td style="width:16px;"><span class="radar-sev ${n.severidad || 'info'}"></span></td>
         <td class="radar-noticia-titulo">${enlace}</td>
         <td>${esc(n.fuente)}</td>
         <td style="color:var(--text-dim);white-space:nowrap;">${fecha}</td>
@@ -276,54 +426,43 @@
     }).join('');
 
     return `
-      <div class="radar-noticias-titulo">📰 Últimas noticias (${estado.noticias.length})</div>
+      <div class="radar-noticias-titulo" style="margin-top:20px;">
+        📋 ${t('radar.todas_noticias')} (${estado.noticias.length})
+      </div>
       <table>
         <thead>
           <tr>
             <th style="width:16px;"></th>
-            <th>Título</th>
-            <th>Fuente</th>
-            <th>Fecha</th>
+            <th>${t('tabla.titulo')}</th>
+            <th>${t('radar.fuente_label')}</th>
+            <th>${t('tabla.fecha') || 'Fecha'}</th>
           </tr>
         </thead>
         <tbody>${filas}</tbody>
       </table>`;
   }
 
-  // ── Helpers ────────────────────────────────────────────────────────────────────
+  // ── Footer de metadata ────────────────────────────────────────────────────────
+  function footerMeta() {
+    if (!estado.timestamp) return '';
+    return `
+      <div class="radar-meta" style="margin-top:14px;">
+        ${t('msgs.consultado')} ${estado.timestamp} &nbsp;·&nbsp;
+        ${estado.fuentesOk} ${t('radar.fuentes')} &nbsp;·&nbsp;
+        ${estado.noticiasTotal} ${t('radar.noticias_analizadas')}
+        ${estado.duracionMs ? `&nbsp;·&nbsp; ${estado.duracionMs} ms` : ''}
+      </div>`;
+  }
 
-  /**
-   * esc() — Escapa caracteres HTML especiales para prevenir XSS.
-   * Es crítico aplicar este escape a cualquier dato que venga de internet (títulos, resúmenes de noticias).
-   * Sin esto, un feed RSS malicioso podría inyectar scripts en la UI.
-   */
+  // ── Helper: escape HTML ───────────────────────────────────────────────────────
+  // Esencial para prevenir XSS: los títulos y resúmenes vienen de internet (feeds RSS).
   function esc(str) {
     if (!str) return '';
     return String(str)
-      .replace(/&/g,  '&amp;')   // & → &amp;  (debe ser primero para no escapar los otros escapes)
-      .replace(/</g,  '&lt;')    // < → &lt;   (evita inyección de etiquetas HTML)
-      .replace(/>/g,  '&gt;')    // > → &gt;   (cierre de etiquetas)
-      .replace(/"/g,  '&quot;'); // " → &quot; (evita romper atributos HTML)
+      .replace(/&/g,  '&amp;')
+      .replace(/</g,  '&lt;')
+      .replace(/>/g,  '&gt;')
+      .replace(/"/g,  '&quot;');
   }
 
-  // ── Estado vacío inicial (antes de la primera actualización) ──────────────────
-
-  document.addEventListener('DOMContentLoaded', () => {
-    const el = document.getElementById('resultado-radar');
-    if (el) {
-      // Mostrar instrucciones iniciales para guiar al usuario antes de la primera actualización
-      el.innerHTML = `
-        <div class="radar-vacio">
-          <div class="radar-vacio-icono">📡</div>
-          Pulsa <strong>Actualizar radar</strong> para analizar las últimas amenazas OSINT<br>
-          y correlacionarlas con el estado de tu sistema.
-          <br><br>
-          <span style="font-size:11px;">
-            Para mejores resultados, ejecuta primero el escáner de <em>Puertos</em>.
-          </span>
-        </div>`;
-    }
-  });
-
-})();  // IIFE (Immediately Invoked Function Expression): encapsula todo en un scope privado
-       // Evita contaminar el namespace global con las variables internas del módulo
+})();
