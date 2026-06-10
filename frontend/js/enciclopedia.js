@@ -1,19 +1,33 @@
 /**
- * enciclopedia.js — Enciclopedia de Malware Interactiva
- * Panel educativo con categorías, buscador en tiempo real y modal de detalle.
- * Modo avanzado: técnicas MITRE ATT&CK, IOCs y CVEs para analistas.
+ * enciclopedia.js — Enciclopedia de Malware Interactiva de ESTICC
  *
- * Internacionalización: los textos se cargan con getAmenazas() según window.ESTICC_LANG.
- * Llamar a window.refreshEnciclopedia() tras cambiar el idioma para re-renderizar.
+ * Arquitectura de datos (separación base / i18n):
+ *   AMENAZAS_BASE[]   — campos técnicos invariantes: mitre, iocs, cves, icono, peligro, categoria.
+ *                       No cambian con el idioma; se definen una sola vez.
+ *   AMENAZAS_I18N{}   — textos traducibles por idioma (es/en): nombre, descripcion, sintomas, etc.
+ *                       Cada entrada es un objeto keyed por el id de la amenaza.
+ *
+ * getAmenazas() fusiona ambas estructuras con Object.assign para producir el array
+ * de objetos completos en el idioma activo (window.ESTICC_LANG).
+ *
+ * Al cambiar de idioma, config.js llama a applyTranslations() (i18n.js), que a su vez
+ * invoca window.refreshEnciclopedia() para re-renderizar chips, grid y modal sin recargar.
  */
 
-// ── Base de datos (campos técnicos, no traducibles) ───────────────────────────
+// ── Base de datos de amenazas (campos técnicos, no traducibles) ───────────────
+// Estos campos son idénticos en todos los idiomas:
+//   - icono:     emoji que representa visualmente la amenaza en tarjetas y modal
+//   - peligro:   clave interna usada como clase CSS y para traducción ('critico'|'alto'|'medio')
+//   - categoria: clave interna del filtro de chips (la etiqueta visible se traduce en renderChips)
+//   - mitre:     técnicas MITRE ATT&CK — nomenclatura inglesa oficial, invariante
+//   - iocs:      indicadores de compromiso — contienen artefactos técnicos (rutas, hashes, puertos)
+//   - cves:      identificadores CVE — universales, sin traducción posible
 
 const AMENAZAS_BASE = [
   {
-    id: 'ransomware',
+    id: 'ransomware',      // Clave única que enlaza con AMENAZAS_I18N[lang].ransomware
     icono: '🔒',
-    peligro: 'critico',
+    peligro: 'critico',    // Nivel de riesgo: 'critico' → badge rojo CRÍTICO/CRITICAL
     categoria: 'Ransomware',
     mitre: [
       { id: 'T1486',     nombre: 'Data Encrypted for Impact' },
@@ -54,7 +68,7 @@ const AMENAZAS_BASE = [
   {
     id: 'spyware',
     icono: '👁️',
-    peligro: 'alto',
+    peligro: 'alto',       // 'alto' → badge naranja ALTO/HIGH
     categoria: 'Spyware',
     mitre: [
       { id: 'T1056.001', nombre: 'Keylogging (API hooking)' },
@@ -73,7 +87,7 @@ const AMENAZAS_BASE = [
   {
     id: 'adware',
     icono: '📢',
-    peligro: 'medio',
+    peligro: 'medio',      // 'medio' → badge amarillo MEDIO/MEDIUM
     categoria: 'Adware',
     mitre: [
       { id: 'T1176',     nombre: 'Browser Extensions' },
@@ -86,7 +100,7 @@ const AMENAZAS_BASE = [
       'Extensión sin firma ni ID verificado en chrome://extensions/',
       'Proceso: BHO (Browser Helper Object) cargado en iexplore.exe',
     ],
-    cves: [],
+    cves: [],              // Sin CVEs documentados para adware genérico
   },
   {
     id: 'rootkit',
@@ -209,6 +223,15 @@ const AMENAZAS_BASE = [
 ];
 
 // ── Contenido traducible por idioma ───────────────────────────────────────────
+// Estructura: AMENAZAS_I18N[lang][id] = { nombre, descripcion_corta, descripcion,
+//             vector, sintomas[], prevencion[], herramienta, ejemplos[] }
+//
+// Por qué estos campos van aquí y no en AMENAZAS_BASE:
+//   - Contienen prosa en lenguaje natural, no identificadores técnicos.
+//   - Descripciones, síntomas y medidas de prevención cambian significativamente
+//     según el idioma (longitud, vocabulario, contexto cultural).
+//   - ejemplos[] incluye en algunos casos términos entre paréntesis que sí se traducen
+//     (ej. "Pegasus (grado gubernamental)" → "Pegasus (government-grade)").
 
 const AMENAZAS_I18N = {
 
@@ -217,8 +240,11 @@ const AMENAZAS_I18N = {
     ransomware: {
       nombre: 'Ransomware',
       descripcion_corta: 'Cifra tus archivos y exige un rescate económico para devolverte el acceso.',
+      // Descripción completa mostrada en el modal de detalle
       descripcion: 'El ransomware es uno de los ataques más devastadores de la actualidad. Tras infectar el sistema, cifra documentos, imágenes, vídeos y bases de datos usando algoritmos de criptografía asimétrica (RSA-2048 + AES-256). El atacante posee la clave privada de descifrado y exige un pago —generalmente en criptomonedas como Bitcoin o Monero— a cambio de enviarla. No hay garantía de recuperación incluso pagando.',
+      // Vector de ataque: cómo llega la amenaza al sistema
       vector: 'Correos con adjuntos maliciosos (macros de Office), sitios de descarga ilegítimos, vulnerabilidades de red sin parchear (SMB/EternalBlue), acceso RDP con contraseñas débiles.',
+      // Síntomas observables por el usuario no técnico
       sintomas: [
         'Archivos con extensiones desconocidas (.locked, .encrypted, .enc)',
         'Nota de rescate en el escritorio o en cada carpeta',
@@ -226,6 +252,7 @@ const AMENAZAS_I18N = {
         'CPU al 100% durante la fase de cifrado',
         'Iconos de archivo cambiados o en blanco',
       ],
+      // Medidas preventivas ordenadas por facilidad de implementación
       prevencion: [
         'Realizar copias de seguridad offline y en la nube de forma regular',
         'Mantener el sistema operativo y aplicaciones actualizados',
@@ -649,68 +676,92 @@ const AMENAZAS_I18N = {
   },
 };
 
-// ── Estado del filtro ─────────────────────────────────────────────────────────
-
+// ── Estado del filtro de categoría y del buscador ─────────────────────────────
+// filtroCategoria usa el sentinel '_todos_' (no vacío ni null) para distinguir
+// "sin filtro activo" de un filtro que coincida con una categoría llamada "todos".
 let filtroCategoria = '_todos_';
-let filtroBusqueda  = '';
+let filtroBusqueda  = '';    // Texto actual del input de búsqueda (en minúsculas se compara en amenazasFiltradas)
 
 // ── Fusión base + idioma activo ───────────────────────────────────────────────
-
+// Devuelve el array completo de amenazas combinando los campos técnicos de
+// AMENAZAS_BASE con los textos del idioma activo de AMENAZAS_I18N.
+// Object.assign({}, base, i18n[id]) crea un nuevo objeto en cada llamada,
+// de modo que ni AMENAZAS_BASE ni AMENAZAS_I18N se mutan nunca.
 function getAmenazas() {
-  const lang = window.ESTICC_LANG || 'es';
-  const i18n  = AMENAZAS_I18N[lang] || AMENAZAS_I18N.es;
+  const lang = window.ESTICC_LANG || 'es';              // Idioma activo; 'es' como fallback seguro
+  const i18n  = AMENAZAS_I18N[lang] || AMENAZAS_I18N.es; // Si el idioma no existe, caer a español
   return AMENAZAS_BASE.map(base => Object.assign({}, base, i18n[base.id] || {}));
+  // i18n[base.id] || {} protege contra un id presente en base pero no en el idioma solicitado
 }
 
 // ── Render de chips de categoría ──────────────────────────────────────────────
-
+// Los chips muestran la etiqueta traducida (t('enc.cat.Ransomware') etc.) pero
+// almacenan la clave interna en data-cat para que el filtro funcione sin
+// depender del idioma activo en el momento de comparación.
 function renderChips() {
   const chipsEl = document.getElementById('enc-chips');
-  if (!chipsEl) return;
+  if (!chipsEl) return;  // Salida segura si el panel no está montado aún
 
+  // Extrae categorías únicas del array ya fusionado (en el idioma activo)
   const categorias = [...new Set(getAmenazas().map(a => a.categoria))];
 
+  // Construye el HTML: primer chip siempre es "Todos/All" con sentinel '_todos_'
   chipsEl.innerHTML = [
     `<button class="enc-chip${filtroCategoria === '_todos_' ? ' activo' : ''}" data-cat="_todos_">${t('enc.cat_todos')}</button>`,
     ...categorias.map(c =>
+      // c es la clave interna (p.ej. 'Troyanos'); t() la traduce al idioma activo
       `<button class="enc-chip${filtroCategoria === c ? ' activo' : ''}" data-cat="${c}">${t('enc.cat.' + c)}</button>`
     ),
   ].join('');
 
+  // Adjunta listeners tras reconstruir el DOM; los listeners previos se eliminan
+  // automáticamente al sobrescribir innerHTML
   chipsEl.querySelectorAll('.enc-chip').forEach(chip => {
     chip.addEventListener('click', () => {
-      filtroCategoria = chip.dataset.cat;
+      filtroCategoria = chip.dataset.cat;  // Actualiza el filtro con la clave interna del chip
+      // Quita 'activo' de todos y lo pone solo en el chip pulsado
       chipsEl.querySelectorAll('.enc-chip').forEach(c => c.classList.remove('activo'));
       chip.classList.add('activo');
-      renderGrid();
+      renderGrid();  // Re-renderiza la grid con el nuevo filtro
     });
   });
 }
 
-// ── Render de la grid ─────────────────────────────────────────────────────────
-
+// ── Filtrado de amenazas ──────────────────────────────────────────────────────
+// Aplica simultáneamente el filtro de categoría y la búsqueda de texto libre.
+// La búsqueda inspecciona todos los campos de texto de la amenaza, incluyendo
+// MITRE, IOCs y CVEs para que un analista pueda buscar "T1486" o "EternalBlue".
 function amenazasFiltradas() {
   return getAmenazas().filter(a => {
+    // Comprueba si la amenaza pertenece a la categoría seleccionada
     const matchCat = filtroCategoria === '_todos_' || a.categoria === filtroCategoria;
-    const q = filtroBusqueda.toLowerCase();
-    const matchBusq = !q || [
+
+    const q = filtroBusqueda.toLowerCase();  // Normaliza el término de búsqueda
+    const matchBusq = !q || [               // Si q está vacío, todas coinciden
       a.nombre, a.categoria, a.descripcion_corta, a.vector,
-      ...(a.sintomas   || []),
+      ...(a.sintomas   || []),              // Guarda nula por si algún lang/entry está incompleto
       ...(a.prevencion || []),
       ...(a.ejemplos   || []),
       ...(a.iocs       || []),
       ...(a.cves       || []),
-      ...(a.mitre      || []).map(m => `${m.id} ${m.nombre}`),
-    ].some(text => text.toLowerCase().includes(q));
-    return matchCat && matchBusq;
+      ...(a.mitre      || []).map(m => `${m.id} ${m.nombre}`), // "T1486 Data Encrypted for Impact"
+    ].some(text => text.toLowerCase().includes(q));  // Basta con que un campo contenga el término
+
+    return matchCat && matchBusq;  // Ambos filtros deben satisfacerse
   });
 }
 
+// ── Render de la grid de tarjetas ─────────────────────────────────────────────
+// Genera el HTML de todas las tarjetas filtradas y lo inyecta en #enc-grid.
+// En modo avanzado (body.modo-avanzado) se muestran bloques adicionales de
+// MITRE, IOCs, CVEs y ejemplos mediante la clase enc-avanzado-extra.
 function renderGrid() {
   const grid = document.getElementById('enc-grid');
-  if (!grid) return;
+  if (!grid) return;  // Panel aún no visible en el DOM
+
   const lista = amenazasFiltradas();
 
+  // Estado vacío: sin resultados para el criterio actual
   if (!lista.length) {
     grid.innerHTML = `<div class="enc-sin-resultados">${t('enc.sin_resultados')}</div>`;
     return;
@@ -721,34 +772,43 @@ function renderGrid() {
       <div class="enc-card-top">
         <span class="enc-icono">${a.icono}</span>
         <div class="enc-badges">
+          <!-- t('enc.peligro.critico') → 'CRÍTICO' o 'CRITICAL' según idioma -->
           <span class="enc-peligro ${a.peligro}">${t('enc.peligro.' + a.peligro)}</span>
+          <!-- Categoría traducida al idioma activo -->
           <span class="enc-categoria-tag">${t('enc.cat.' + a.categoria)}</span>
         </div>
       </div>
       <p class="enc-nombre">${a.nombre}</p>
       <p class="enc-desc-corta">${a.descripcion_corta}</p>
 
+      <!-- Bloque técnico: solo visible en modo avanzado via CSS (.enc-avanzado-extra) -->
       <div class="enc-avanzado-extra">
         <div class="enc-tecnico-bloque">
+          <!-- Cabecera fija en inglés: nomenclatura oficial de MITRE -->
           <div class="enc-tecnico-label">MITRE ATT&amp;CK</div>
           <div class="enc-mitre-tags">
+            <!-- title muestra el nombre completo al hacer hover sobre el tag corto -->
             ${(a.mitre || []).map(m =>
               `<span class="enc-mitre-tag" title="${m.nombre}">${m.id}</span>`
             ).join('')}
           </div>
         </div>
         <div class="enc-tecnico-bloque">
+          <!-- Título traducible: "IOCs destacados" / "Notable IOCs" -->
           <div class="enc-tecnico-label">${t('enc.iocs_titulo')}</div>
           <div class="enc-ioc-lista">
+            <!-- Solo los 2 primeros IOCs para no saturar la tarjeta; el modal muestra todos -->
             ${(a.iocs || []).slice(0, 2).map(ioc =>
               `<div class="enc-ioc">${ioc}</div>`
             ).join('')}
           </div>
         </div>
+        <!-- Bloque CVEs: solo se renderiza si la amenaza tiene CVEs asociados -->
         ${a.cves?.length ? `
         <div class="enc-tecnico-bloque">
           <div class="enc-tecnico-label">${t('enc.cves_titulo')}</div>
           <div class="enc-cve-lista">
+            <!-- Solo el identificador CVE-XXXX-XXXX, sin la descripción extra -->
             ${a.cves.map(c => `<span class="enc-cve-tag">${c.split(' ')[0]}</span>`).join('')}
           </div>
         </div>` : ''}
@@ -760,26 +820,36 @@ function renderGrid() {
         </div>
       </div>
 
+      <!-- Pie de tarjeta: texto traducido del CTA -->
       <div class="enc-card-footer">${t('enc.ver_ficha')}</div>
     </div>`).join('');
 
+  // Adjunta eventos de apertura del modal a cada tarjeta generada
   grid.querySelectorAll('.enc-card').forEach(card => {
     card.addEventListener('click', () => abrirModal(card.dataset.id));
+    // Accesibilidad: permite abrir el modal con teclado (Enter sobre la tarjeta)
     card.addEventListener('keydown', e => { if (e.key === 'Enter') abrirModal(card.dataset.id); });
   });
 }
 
 // ── Modal de detalle ──────────────────────────────────────────────────────────
-
+// Rellena y muestra el modal completo para la amenaza con el id dado.
+// Los headings del modal (h3) se actualizan en cada apertura para garantizar
+// que reflejen el idioma activo aunque el usuario haya cambiado de idioma
+// mientras el modal estaba cerrado.
 function abrirModal(id) {
+  // Busca la amenaza en el array fusionado con el idioma activo actual
   const a = getAmenazas().find(x => x.id === id);
-  if (!a) return;
+  if (!a) return;  // Defensa: id inválido (no debería ocurrir en uso normal)
 
+  // ── Cabecera del modal ────────────────────────────────────────────────
   document.getElementById('enc-modal-icono').textContent   = a.icono;
   document.getElementById('enc-modal-titulo').textContent  = a.nombre;
+  // Subtítulo: badge de peligro + etiqueta de categoría, ambos traducidos
   document.getElementById('enc-modal-subtitulo').innerHTML =
     `<span class="enc-peligro ${a.peligro}" style="margin-right:6px;">${t('enc.peligro.' + a.peligro)}</span>${t('enc.cat.' + a.categoria)}`;
 
+  // ── Cuerpo del modal ──────────────────────────────────────────────────
   document.getElementById('enc-modal-descripcion').textContent = a.descripcion;
   document.getElementById('enc-modal-vector').textContent      = a.vector;
 
@@ -792,8 +862,11 @@ function abrirModal(id) {
   document.getElementById('enc-modal-ejemplos').innerHTML =
     (a.ejemplos || []).map(e => `<span class="enc-ejemplo-modal">${e}</span>`).join('');
 
+  // Prefijo de herramienta con emoji de llave inglesa para distinción visual
   document.getElementById('enc-modal-herramienta').textContent = `🛠️ ${a.herramienta}`;
 
+  // ── Sección técnica (modo avanzado) ──────────────────────────────────
+  // MITRE: cada técnica en una fila con el tag corto (T1486) + nombre largo
   document.getElementById('enc-modal-mitre').innerHTML =
     (a.mitre || []).map(m =>
       `<div class="enc-modal-mitre-row">
@@ -802,74 +875,94 @@ function abrirModal(id) {
       </div>`
     ).join('');
 
+  // IOCs en lista; font monospace aplicada vía CSS en enc-modal-iocs
   document.getElementById('enc-modal-iocs').innerHTML =
     (a.iocs || []).map(ioc => `<li>${ioc}</li>`).join('');
 
+  // Sección CVEs: se oculta completamente si la amenaza no tiene CVEs documentados
   const cveSec = document.getElementById('enc-modal-cve-seccion');
   if (a.cves?.length) {
     document.getElementById('enc-modal-cves').innerHTML =
       a.cves.map(c => `<div class="enc-modal-cve">${c}</div>`).join('');
-    cveSec.style.display = '';
+    cveSec.style.display = '';  // Restaura display por defecto (block)
   } else {
     cveSec.style.display = 'none';
   }
 
-  // Actualizar headings del modal al idioma activo
+  // ── Headings del modal (traducibles) ─────────────────────────────────
+  // Se actualizan al abrir el modal (no en applyTranslations) porque el modal
+  // normalmente está oculto: actualizarlo a ciegas cada vez que cambia el idioma
+  // sería trabajo innecesario, y hacerlo aquí garantiza que siempre sea correcto.
   const headings = {
-    'enc-modal-h-que-es':    'enc.modal_que_es',
-    'enc-modal-h-vector':    'enc.modal_vector',
-    'enc-modal-h-sintomas':  'enc.modal_sintomas',
-    'enc-modal-h-prevencion':'enc.modal_prevencion',
-    'enc-modal-h-ejemplos':  'enc.modal_ejemplos',
+    'enc-modal-h-que-es':     'enc.modal_que_es',
+    'enc-modal-h-vector':     'enc.modal_vector',
+    'enc-modal-h-sintomas':   'enc.modal_sintomas',
+    'enc-modal-h-prevencion': 'enc.modal_prevencion',
+    'enc-modal-h-ejemplos':   'enc.modal_ejemplos',
     'enc-modal-h-herramienta':'enc.modal_herramienta',
-    'enc-modal-h-mitre':     'enc.modal_mitre',
-    'enc-modal-h-iocs':      'enc.modal_iocs',
-    'enc-modal-h-cves':      'enc.modal_cves',
-    'enc-modal-h-tecnico':   'enc.modal_tecnico',
+    'enc-modal-h-mitre':      'enc.modal_mitre',
+    'enc-modal-h-iocs':       'enc.modal_iocs',
+    'enc-modal-h-cves':       'enc.modal_cves',
+    'enc-modal-h-tecnico':    'enc.modal_tecnico',
   };
+  // Itera el mapa y actualiza cada heading; el ||{} protege contra IDs ausentes
   Object.entries(headings).forEach(([elId, key]) => {
     const el = document.getElementById(elId);
     if (el) el.textContent = t(key);
   });
 
+  // Muestra el overlay y bloquea el scroll del body mientras el modal está abierto
   document.getElementById('enc-modal-overlay').classList.add('visible');
   document.body.style.overflow = 'hidden';
 }
 
+// ── Cierre del modal ──────────────────────────────────────────────────────────
 function cerrarModal() {
   document.getElementById('enc-modal-overlay').classList.remove('visible');
-  document.body.style.overflow = '';
+  document.body.style.overflow = '';  // Restaura el scroll del body
 }
 
 // ── Refresco al cambiar idioma ────────────────────────────────────────────────
-
+// Expuesto como window.refreshEnciclopedia para que applyTranslations() (i18n.js)
+// lo invoque cada vez que el usuario cambia de idioma en Configuración.
+// Re-renderiza chips, buscador y grid con los textos del nuevo idioma activo.
 window.refreshEnciclopedia = function () {
   const buscarEl = document.getElementById('enc-buscar');
+  // Actualiza el placeholder del input de búsqueda con el texto traducido
   if (buscarEl) buscarEl.placeholder = t('enc.buscar_placeholder');
-  renderChips();
-  renderGrid();
+  renderChips();  // Reconstruye los chips con las etiquetas de categoría traducidas
+  renderGrid();   // Re-renderiza todas las tarjetas con los textos del nuevo idioma
 };
 
 // ── Inicialización ────────────────────────────────────────────────────────────
-
+// Se ejecuta una sola vez al cargar el DOM; registra listeners permanentes
+// (buscador, cerrar modal, tecla Escape) y hace el primer render.
 document.addEventListener('DOMContentLoaded', () => {
   const buscarEl = document.getElementById('enc-buscar');
   if (buscarEl) {
+    // Placeholder inicial en el idioma cargado (es por defecto)
     buscarEl.placeholder = t('enc.buscar_placeholder');
+    // Listener de escritura: actualiza filtroBusqueda y re-renderiza en tiempo real
     buscarEl.addEventListener('input', e => {
       filtroBusqueda = e.target.value;
       renderGrid();
     });
   }
 
+  // Botón × del modal
   document.getElementById('enc-modal-cerrar').addEventListener('click', cerrarModal);
+
+  // Clic fuera del modal (en el overlay semitransparente) también lo cierra
   document.getElementById('enc-modal-overlay').addEventListener('click', e => {
-    if (e.target === e.currentTarget) cerrarModal();
+    if (e.target === e.currentTarget) cerrarModal();  // Solo si el clic fue en el overlay, no en el modal
   });
+
+  // Tecla Escape cierra el modal desde cualquier foco en la página
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') cerrarModal();
   });
 
+  // Render inicial: chips + grid en el idioma por defecto
   renderChips();
   renderGrid();
 });

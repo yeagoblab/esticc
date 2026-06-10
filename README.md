@@ -90,6 +90,8 @@ Base de conocimiento con 10 categorías de amenazas, búsqueda en tiempo real y 
 - CVEs asociados
 - Vectores de ataque, síntomas y medidas de prevención
 
+**Disponible en Español e Inglés** *(nuevo en v0.6.3)* — al cambiar el idioma en Configuración, toda la enciclopedia (descripciones, síntomas, medidas de prevención, herramientas recomendadas, ejemplos, categorías y niveles de peligro) se actualiza al instante sin recargar la aplicación.
+
 ### 🎓 Tutorial interactivo *(nuevo en v0.6.0)*
 Tutorial de primera vez que guía al usuario por todas las funciones principales de ESTICC:
 - Se lanza automáticamente en la primera instalación (puede omitirse)
@@ -249,7 +251,7 @@ esticc/
 │       ├── background.js              # Escáner en segundo plano + banner de recordatorio
 │       ├── auditoria.js               # Renderers de los 5 módulos + sistema de toasts + withTimeout
 │       ├── simulador.js               # 8 escenarios de demo + interceptor de invoke()
-│       ├── enciclopedia.js            # Base de datos de malware + buscador + modal de detalle
+│       ├── enciclopedia.js            # Base de datos de malware (ES/EN) + buscador + modal de detalle; AMENAZAS_BASE + AMENAZAS_I18N
 │       ├── radar.js                   # Fetch OSINT + renderizado en vista básica/avanzada
 │       ├── reportes.js                # Informe HTML con ficha de máquina + sección de salud
 │       ├── historial.js               # Calendario interactivo + window.HISTORIAL.registrar()
@@ -359,6 +361,17 @@ La lista se limita a las **100 entradas más recientes** (política FIFO). Para 
 ---
 
 ## Changelog
+
+### [v0.6.3](https://github.com/yeagoblab/esticc/releases/tag/v0.6.3) — 2026-06-10
+- **feat:** enciclopedia de malware internacionalizada — las 9 amenazas están disponibles en español e inglés. `enciclopedia.js` se ha refactorizado separando `AMENAZAS_BASE` (campos técnicos invariantes: MITRE, IOCs, CVEs) de `AMENAZAS_I18N` (textos en ES/EN: nombre, descripción, vector, síntomas, prevención, herramienta, ejemplos). La función `getAmenazas()` fusiona ambas estructuras con el idioma activo en cada llamada.
+- **feat:** chips de categoría y niveles de peligro traducidos — "Troyanos" → "Trojans", "Gusanos" → "Worms", "Vectores" → "Attack Vectors"; "CRÍTICO/ALTO/MEDIO" → "CRITICAL/HIGH/MEDIUM".
+- **feat:** `window.refreshEnciclopedia()` — al cambiar de idioma en Configuración, `applyTranslations()` invoca este hook y la enciclopedia (chips, grid, placeholder del buscador) se re-renderiza al instante sin recargar la app.
+- **chore:** eliminado el aviso "La Enciclopedia de Malware está disponible solo en español".
+
+### [v0.6.2](https://github.com/yeagoblab/esticc/releases/tag/v0.6.2) — 2026-06-03
+- **fix:** `actualizador.py` reescrito en ASCII puro — la release v0.6.1 contenía un `backend.exe` compilado desde un fuente con encoding corrupto (mojibake introducido por `package_release.ps1`). El binario funcionaba correctamente en tiempo de ejecución, pero el código fuente era ilegible y difícil de mantener.
+- **fix:** `package_release.ps1` corregido — el script ahora usa Python para sincronizar `VERSION_ACTUAL` en `actualizador.py` en lugar de `Get-Content`/`Set-Content` de PowerShell 5.1, que corrompía los caracteres UTF-8 en cada release.
+- **fix:** la app se relanza automáticamente al terminar la instalación de una actualización — el wait-loop del backend espera a que `ESTICC.exe` cierre antes de señalizar al PS script que puede copiar los binarios.
 
 ### [v0.6.0](https://github.com/yeagoblab/esticc/releases/tag/v0.6.0) — 2026-06-02
 - **feat:** tutorial interactivo de primera vez — se lanza automáticamente en la primera instalación con un overlay de 7 pasos que resalta cada elemento de la UI. Incluye botón "Omitir" y opción de relanzar desde Configuración. El estado se persiste en `config.json` (`tutorial_completado`).
