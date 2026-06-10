@@ -5,6 +5,18 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 
 ---
 
+## [v0.6.4](https://github.com/yeagoblab/esticc/releases/tag/v0.6.4) — 2026-06-10
+
+### Añadido
+- **Informe OSINT Semanal** — el panel Radar OSINT genera ahora un informe estructurado con las noticias de los últimos 7 días, agrupadas en tres secciones por severidad: Amenazas Críticas · Amenazas de Alto Riesgo · Noticias Informativas. Cada noticia muestra el título como enlace clickable, la fuente RSS, la fecha relativa ("hoy", "ayer", "hace N días") y el resumen truncado a 200 caracteres en modo avanzado.
+- **Exportación PDF del informe** — botón "🖨️ Guardar PDF" que llama a `window.print()`. La hoja `@media print` de `radar.css` oculta toda la interfaz de ESTICC excepto el informe, adapta los colores al papel blanco, añade la URL completa de cada enlace (útil en papel impreso) y fuerza una sola columna para mayor legibilidad.
+- **Fallback de ventana temporal** — si menos de 3 noticias tienen fecha dentro de los últimos 7 días (feeds con fechas antiguas, sin fecha, o feeds caídos), el informe muestra las 20 noticias más recientes disponibles y añade un aviso en la cabecera indicando que se usa el fallback.
+
+### Mejorado
+- Comentarios completos en `radar.js`: cada función, el protocolo IPC con Tauri, la estrategia de filtrado temporal con `VENTANA_SEMANA_MS`, el escape XSS con `esc()` y el flujo completo del PDF.
+
+---
+
 ## [v0.6.3](https://github.com/yeagoblab/esticc/releases/tag/v0.6.3) — 2026-06-10
 
 ### Añadido

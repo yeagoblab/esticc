@@ -42,12 +42,18 @@ Cada tarjeta de componente muestra ahora **dos gauges circulares**: Uso actual y
 | Almacenamiento | `Get-PhysicalDisk HealthStatus` | Healthy / Warning / Unhealthy por disco físico |
 | Batería | WMI `BatteryFullChargedCapacity / DesignedCapacity` | % de capacidad original conservada |
 
-### 📡 Radar OSINT
-Monitoriza 6 fuentes de inteligencia de ciberseguridad en tiempo real y correlaciona las amenazas publicadas con el estado del sistema local:
+### 📡 Radar OSINT con Informe Semanal *(nuevo en v0.6.4)*
+Monitoriza 6 fuentes de inteligencia de ciberseguridad en tiempo real, genera un **Informe OSINT Semanal** con las noticias de los últimos 7 días y correlaciona las amenazas publicadas con el estado del sistema local:
 - NIST NVD · Bleeping Computer · Krebs on Security
 - SANS Internet Storm Center · The Hacker News · Reddit r/netsec
 - Alerta cuando un puerto abierto coincide con una amenaza publicada
 - Extracción automática de CVEs y correlación de protocolos
+
+**Informe OSINT Semanal:**
+- Noticias de los últimos 7 días agrupadas por severidad: Críticas · Altas · Informativas
+- Cada noticia muestra título como **enlace clickable**, fuente, fecha relativa ("hace 2 días") y resumen (modo avanzado)
+- Si menos de 3 noticias tienen fecha dentro de 7 días, muestra las más recientes disponibles con un aviso
+- Botón **🖨️ Guardar PDF** que exporta el informe con `window.print()`: URLs visibles en papel, columna única, sin elementos de UI
 
 ### 🎓 Simulador de Amenazas
 Modo demostración educativo con **8 escenarios de ataque** con datos ficticios completos (5 escáneres cada uno).
@@ -252,7 +258,7 @@ esticc/
 │       ├── auditoria.js               # Renderers de los 5 módulos + sistema de toasts + withTimeout
 │       ├── simulador.js               # 8 escenarios de demo + interceptor de invoke()
 │       ├── enciclopedia.js            # Base de datos de malware (ES/EN) + buscador + modal de detalle; AMENAZAS_BASE + AMENAZAS_I18N
-│       ├── radar.js                   # Fetch OSINT + renderizado en vista básica/avanzada
+│       ├── radar.js                   # Informe OSINT Semanal: fetch + correlación + tarjetas de noticias + PDF
 │       ├── reportes.js                # Informe HTML con ficha de máquina + sección de salud
 │       ├── historial.js               # Calendario interactivo + window.HISTORIAL.registrar()
 │       ├── hardware.js                # Monitor + doble gauge (uso/salud) + panel explicativo
@@ -361,6 +367,12 @@ La lista se limita a las **100 entradas más recientes** (política FIFO). Para 
 ---
 
 ## Changelog
+
+### [v0.6.4](https://github.com/yeagoblab/esticc/releases/tag/v0.6.4) — 2026-06-10
+- **feat:** Informe OSINT Semanal — el Radar OSINT genera ahora un informe estructurado con las noticias de los últimos 7 días agrupadas por severidad (crítico / alto / informativo). Cada noticia muestra el título como enlace clickable, la fuente, la fecha relativa ("hoy", "ayer", "hace N días") y el resumen en modo avanzado.
+- **feat:** exportación PDF del informe — botón "🖨️ Guardar PDF" que activa `window.print()`. `@media print` en `radar.css` oculta toda la UI de ESTICC, adapta los colores al papel blanco, muestra la URL completa de cada enlace y fuerza columna única para mejor lectura impresa.
+- **feat:** fallback de ventana temporal — si menos de 3 noticias tienen fecha dentro de los últimos 7 días (feeds con fechas antiguas o sin fecha), muestra las 20 noticias más recientes disponibles con un aviso en la cabecera del informe.
+- **chore:** comentarios completos en `radar.js` explicando cada función, el protocolo IPC, la estrategia de filtrado temporal, el escape XSS y el flujo del PDF.
 
 ### [v0.6.3](https://github.com/yeagoblab/esticc/releases/tag/v0.6.3) — 2026-06-10
 - **feat:** enciclopedia de malware internacionalizada — las 9 amenazas están disponibles en español e inglés. `enciclopedia.js` se ha refactorizado separando `AMENAZAS_BASE` (campos técnicos invariantes: MITRE, IOCs, CVEs) de `AMENAZAS_I18N` (textos en ES/EN: nombre, descripción, vector, síntomas, prevención, herramienta, ejemplos). La función `getAmenazas()` fusiona ambas estructuras con el idioma activo en cada llamada.
